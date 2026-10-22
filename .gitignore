@@ -1,0 +1,19 @@
+# Runtime state -- never commit these. config.yaml holds the secret key.
+config.yaml
+data/
+*.db
+*.db-wal
+*.db-shm
+
+*.json
+example.py
+
+# Written by the Dockerfile inside the image only (see app/core/layout.py).
+app/core/layout_pinned.py
+app/build_info.py
+
+# Python.
+__pycache__/
+*.pyc
+.venv/
+venv/

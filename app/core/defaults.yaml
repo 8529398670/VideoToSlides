@@ -1,0 +1,185 @@
+# VideoToSlides -- the one configuration file.
+#
+# Everything is configured here: the server and the Docker container. Nothing
+# reads environment variables. Every key is optional; a key you leave out
+# takes the value shown in this file.
+#
+# This file holds the secret key, so treat it like one: mode 0600, never
+# committed (it is in .gitignore), never baked into an image (.dockerignore).
+#
+# Where it is read from, first match wins:
+#
+#   ./config.yaml                      a source checkout; also what
+#                                      dockerRun.sh reads
+#   ~/.config/videotoslides/config.yaml   the app run from anywhere else
+#
+# If neither exists the server writes the second one, with a fresh secret key,
+# on first run. `python -m app config init` writes ./config.yaml the same way,
+# and `python -m app config check` validates whichever file is in use.
+#
+# Relative paths in server: resolve against the directory holding this file.
+# Relative paths in docker: resolve against the project directory.
+#
+# An unknown key is an error, not a silently ignored typo.
+
+app:
+  # Shown in the startup log.
+  name: "VideoToSlides"
+
+server:
+  # 127.0.0.1 answers only this machine, which is what a development run and
+  # a server behind a reverse proxy on the same host both want. Use 0.0.0.0
+  # to listen on every interface -- and then put TLS in front, because login
+  # links, cookies, and API keys all cross the wire. Ignored inside the
+  # container, which always listens on 0.0.0.0 (what is reachable from
+  # outside is docker.bind_address).
+  host: 127.0.0.1
+  port: 8000
+
+  # Where the database and app storage live. Empty means
+  # ~/.config/videotoslides/. Ignored inside the container, which always
+  # uses /app/data (mounted from docker.data_dir).
+  app_dir: ""
+
+  # Used when they exist; otherwise the copies that ship with the code. Empty
+  # language_file means <app_dir>/language.yaml if it exists, else
+  # language.yaml beside this file.
+  static_dir: ./static
+  language_file: ""
+
+  # Encrypts session cookies and, with encrypt_at_rest, every database record.
+  # 64 hex characters. Generated when this file is created. It must never
+  # change: a different key cannot read anything written with this one, so
+  # back this file up together with the app directory.
+  secret_key: ""
+  encrypt_at_rest: true
+
+  # false ONLY for plain http://localhost. A Secure cookie is silently dropped
+  # over http, so login appears to succeed and then does nothing.
+  secure_cookies: true
+  cookie_name: session
+
+  # Turn on when a reverse proxy you control is in front (the Docker setup
+  # assumes one), so the rate limiter sees each visitor's address instead of
+  # the proxy's. proxy_header is then believed only on connections from an
+  # address in trusted_proxies -- the address your proxy connects *from*, as
+  # this server sees it -- and read right to left, skipping trusted hops, so
+  # whatever a client wrote further left is ignored. trust_proxy without
+  # trusted_proxies is refused.
+  #
+  #   proxy on the same host, no Docker:    [127.0.0.1, "::1"]
+  #   proxy on the host, app in Docker:     [172.16.0.0/12] (the bridge
+  #                                         gateway; check with
+  #                                         `docker network inspect bridge`)
+  #
+  # This only holds if clients cannot reach this server except through the
+  # proxy. With a single-value header (X-Real-IP, CF-Connecting-IP) the proxy
+  # must also overwrite whatever the client sent rather than pass it on.
+  trust_proxy: false
+  trusted_proxies: []
+  proxy_header: X-Forwarded-For
+
+  # The cap on an ordinary (JSON) request. Video upload chunks are the one
+  # exception and get their own limit from uploads.chunk_bytes.
+  body_limit_bytes: 1048576        # 1 MiB
+  # Per client address, per window. High because one page legitimately makes
+  # many requests: a review grid loads a thumbnail per slide, uploads go in
+  # chunks, and the job list polls while anything is running.
+  rate_limit_max: 1200
+  rate_limit_window_seconds: 60
+
+auth:
+  session_ttl_seconds: 1209600     # 14 days
+  login_token_ttl_seconds: 1800    # 30 minutes
+
+  # API keys let a script, a cron job, or another service call the API at the
+  # role of the account that owns them, never higher. false closes the surface
+  # completely: the Authorization header stops being believed, existing keys
+  # stop working (the rows survive), and the endpoints that mint keys 404.
+  api_keys: true
+
+  # Lifetime of a new key when the request does not say. A key that never
+  # expires has to be asked for (expires_in_days: 0, or `--days 0`).
+  api_key_ttl_seconds: 7776000     # 90 days
+
+jobs:
+  # Videos processed at the same time. Each one already uses every core while
+  # it scans, so more than 1-2 mostly makes them all finish later.
+  max_concurrent: 1
+  # Parallel ffmpeg decoders per video during the scan. 0 = CPU cores minus one.
+  scan_workers: 0
+  # Parallel ffmpeg frame grabs per video (more causes I/O contention).
+  extract_workers: 6
+  # Keep the uploaded/downloaded video after its slides are extracted. Off
+  # saves the disk space; a failed job always keeps its video so it can be
+  # retried.
+  keep_source: false
+
+uploads:
+  # Largest single video accepted from the browser.
+  max_bytes: 21474836480           # 20 GiB
+  # Uploads are sent in chunks of this size, each one its own request -- this
+  # is also the body limit on the chunk endpoint, and only there.
+  chunk_bytes: 33554432            # 32 MiB
+
+youtube:
+  # false removes the URL box and its endpoint.
+  enabled: true
+  # Highest video resolution downloaded. Slides are readable well below 4K,
+  # and the download is the slow part.
+  max_height: 1080
+  # Playlists and channels longer than this are cut off here.
+  max_playlist_items: 200
+
+google:
+  # OPTIONAL. Google Slides export works without any of this: each user links
+  # their own Google account with a small Apps Script bridge, following the
+  # steps on Account -> Google Slides (no Google Cloud project needed).
+  #
+  # Fill this in only to also offer one-click "Connect with Google sign-in",
+  # which needs a Google Cloud OAuth client. Setup, at
+  # https://console.cloud.google.com:
+  #   1. Create (or pick) a project; enable the "Google Drive API" for it.
+  #   2. Google Auth Platform -> Branding: an app name and support email.
+  #      Audience: External, then "Publish app". Only non-sensitive scopes
+  #      are requested, so Google needs no review -- and once published,
+  #      anyone can link their account. (Left in "Testing", only listed test
+  #      users can link, and their links expire after 7 days.)
+  #   3. Clients -> Create client -> "Web application", with redirect_url
+  #      below as an Authorized redirect URI. Download the client's JSON.
+  #   4. ./run.sh config google ~/Downloads/client_secret_....json
+  #      (fills in the two lines below), then restart.
+  #
+  # The app asks only for the drive.file scope: it sees the files it creates
+  # and nothing else in the user's Drive.
+  client_id: ""
+  client_secret: ""
+  # The public address of /api/google/callback, exactly as registered with
+  # Google. Empty means http://localhost:<server.port>/api/google/callback,
+  # which is right for ./run.sh. Behind Docker (docker.host_port) or a reverse
+  # proxy, write the address the browser actually uses.
+  redirect_url: ""
+
+docker:
+  image: videotoslides
+  container: videotoslides
+
+  # The host side of the published port. 127.0.0.1 keeps it reachable only
+  # from this machine -- put nginx/Caddy/Traefik in front for TLS. The
+  # container side is server.port.
+  bind_address: 127.0.0.1
+  host_port: 8000
+
+  # Host directory mounted at /app/data: the database and app storage. This
+  # file is mounted separately (read-only), so a backup of data_dir alone does
+  # not carry the key.
+  data_dir: ./data
+
+  restart: unless-stopped          # no | always | unless-stopped | on-failure[:N]
+
+  # Blast-radius limits. Raise them deliberately for real load.
+  # Video decoding is the heavy part: every scan runs one ffmpeg per core.
+  memory: 2g
+  cpus: "4"
+  pids_limit: 512
+  tmpfs_size: 64m                  # the only writable path besides data_dir

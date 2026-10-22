@@ -1,0 +1,403 @@
+# Every piece of text the UI can show lives here, and nowhere else.
+#
+# Two rules make this useful rather than just indirection:
+#
+#   1. Translating or rewording the app is an edit to this file plus a
+#      restart. No HTML or JS changes, no rebuild.
+#   2. A key that is missing or empty ("") hides its element entirely. That
+#      is how you turn a label, a button, or a whole section off without
+#      touching the markup -- set it to "" and it disappears rather than
+#      rendering blank or showing a raw key name.
+#
+# This file is served to any visitor at /api/language, signed in or not, since
+# the signed-out page needs text too. Never put anything secret in it.
+
+app:
+  title: "VideoToSlides"
+  #tagline: "Videos to Slides"
+
+signed_out:
+  heading: "You are not signed in"
+  body: "There is no signup form here on purpose. Ask an admin for a one-time login link."
+  invalid_link: "That login link is invalid, expired, or has already been used. Ask for a new one."
+
+login_confirm:
+  heading: "Sign in"
+  body: "This is a one-time login link. It stops working once you use it."
+  # {name} is replaced with the account currently signed in.
+  switch_warning: "You are signed in as {name}. Continuing signs you out of that account and into the one this link is for."
+  button: "Sign in"
+
+profile:
+  heading: "Profile"
+  appearance: "Appearance"
+  theme_label: "Theme"
+
+account:
+  heading: "Account"
+  display_name_label: "Display name"
+  display_name_placeholder: "Your name"
+  save_button: "Save"
+  saved_notice: "Saved."
+  logout_button: "Log out"
+
+admin:
+  heading: "Admin"
+  description: "Create an account by minting a login link. Send the link to the person; it works once."
+  new_name_label: "Name"
+  new_name_placeholder: "Their name"
+  new_role_label: "Role"
+  role_user: "user"
+  role_admin: "admin"
+  create_button: "Create login link"
+  link_notice: "Send this one-time link. It is shown once and cannot be recovered, and any earlier unused link for this person has stopped working."
+  copy_button: "Copy"
+  copied_notice: "Copied."
+  table_name: "Name"
+  table_role: "Role"
+  table_status: "Status"
+  table_actions: "Actions"
+  status_active: "active"
+  status_disabled: "disabled"
+  reissue_button: "New link"
+  revoke_button: "Revoke access"
+  # {name} is replaced with the account's display name.
+  revoke_confirm: "End every session, unused login link and API key that {name} has? The account stays enabled; send them a new link to let them back in."
+  disable_button: "Disable"
+  enable_button: "Enable"
+
+api_keys:
+  heading: "API keys"
+  description: "For scripts, cron jobs, and other services. A key does exactly what your account can do -- send it as an Authorization: Bearer header. It is shown once."
+  name_label: "What is it for"
+  name_placeholder: "deploy bot"
+  role_label: "Permission"
+  role_user: "user"
+  role_admin: "admin (can manage accounts)"
+  days_label: "Expires in (days)"
+  days_placeholder: "leave blank for the default, 0 for never"
+  create_button: "Create key"
+  secret_notice: "Copy this now. It is shown once and cannot be recovered -- if you lose it, revoke the key and create another."
+  copy_button: "Copy"
+  copied_notice: "Copied."
+  table_name: "Name"
+  table_role: "Permission"
+  table_status: "Status"
+  table_last_used: "Last used"
+  table_expires: "Expires"
+  table_actions: "Actions"
+  status_active: "active"
+  status_revoked: "revoked"
+  status_expired: "expired"
+  never: "never"
+  revoke_button: "Revoke"
+  # Empty this string to stop asking for confirmation before revoking.
+  revoke_confirm: "Revoke this key? Anything using it stops working immediately."
+
+admin_keys:
+  heading: "All API keys"
+  description: "Every key in this app and who owns it. Revoke one to cut off whatever is using it, right away."
+  table_owner: "Owner"
+
+errors:
+  generic: "Something went wrong. Please try again."
+  network: "Could not reach the server."
+
+header:
+  # Labels for the icon buttons in the top bar (read by screen readers and
+  # shown as tooltips).
+  profile: "Profile"
+  settings: "Settings"
+  home: "Back to your videos"
+
+theme:
+  use_dark: "Dark mode"
+  use_light: "Light mode"
+
+units:
+  bytes: "{value} B"
+  kb: "{value} KB"
+  mb: "{value} MB"
+  gb: "{value} GB"
+  tb: "{value} TB"
+
+convert:
+  heading: "Add videos"
+  drop_title: "Drop videos or folders here"
+  drop_hint: "Each video becomes a folder of slide images. Lecture recordings work best."
+  pick_files: "Choose videos"
+  pick_folder: "Choose a folder"
+  # {count} files skipped; {types} is the list of accepted extensions.
+  skipped: "Skipped {count} file(s) that are not videos ({types})."
+  upload_waiting: "Waiting…"
+  upload_cancel: "Cancel"
+  # {done} and {total} are sizes like "120 MB"; {percent} is a number.
+  upload_progress: "{done} of {total} ({percent}%)"
+  upload_retrying: "Connection trouble, retrying ({attempt})…"
+  upload_finishing: "Finishing…"
+  upload_done: "Uploaded — queued for conversion."
+  upload_failed: "Upload failed: {error}"
+  youtube_label: "Or paste a YouTube link"
+  youtube_placeholder: "https://www.youtube.com/watch?v=…"
+  youtube_button: "Add"
+  youtube_working: "Looking it up…"
+  youtube_hint: "A video, a playlist (…/playlist?list=…), or a channel's videos page (…/@name/videos). Each video becomes its own job."
+  youtube_added_one: "Added “{title}”."
+  youtube_added_many: "Added {count} videos from “{batch}”."
+
+jobs:
+  heading: "Your videos"
+  empty: "Nothing here yet. Add a video above and its slides will appear here."
+  source_upload: "Uploaded"
+  source_youtube: "YouTube"
+  status_queued: "Waiting in line"
+  status_starting: "Starting"
+  status_downloading: "Downloading"
+  status_scanning: "Finding slides"
+  status_extracting: "Capturing slides"
+  status_filtering: "Removing duplicates"
+  status_failed: "Failed"
+  status_cancelled: "Cancelled"
+  slides: "{count} slides"
+  slides_one: "1 slide"
+  no_slides: "No slides found"
+  camera_hint: "This looks like a camera recording of a speaker rather than screen-recorded slides, so almost everything was treated as camera movement. Slide detection works on recordings of the slides themselves (with or without a small webcam pane)."
+  excluded: "{count} excluded"
+  build_steps_hidden: "{count} build steps hidden"
+  rerun_button: "Run again"
+  # {title} is the video's title. Empty this to run again without asking.
+  rerun_confirm: "Process “{title}” again? Its slides, exclusions and exported links are replaced. YouTube videos are downloaded again."
+  batch_progress: "{done} of {total} finished"
+  convert_all: "Convert all ({count})"
+  convert_button: "Convert"
+  review_button: "Review slides"
+  images_button: "Images (.zip)"
+  cancel_button: "Cancel"
+  retry_button: "Retry"
+  delete_button: "Delete"
+  # {title} is the video's title. Empty this to delete without asking.
+  delete_confirm: "Delete “{title}” and its slides? This cannot be undone."
+  delete_title: "Delete video"
+  delete_google_label: "Also move the Google Slides deck to the trash in Google Drive"
+  delete_cancel: "Cancel"
+  delete_go: "Delete"
+
+export:
+  ready_one: "“{title}” is ready"
+  ready_many: "{count} videos are ready"
+  summary: "{count} slides ready. Turn them into a deck?"
+  list_item: "{title} — {count} slides"
+  choose: "Create"
+  pptx: "PowerPoint (.pptx)"
+  gslides: "Google Slides"
+  replace_label: "Replace the existing Google Slides deck (same link)"
+  google_as: "Saved to the Google Drive of {email}."
+  google_will_connect: "You'll sign in to Google once; the deck is then created in your Google Drive."
+  google_needs_setup: "Google Slides isn't set up on this server yet."
+  google_ask_admin: "Google Slides isn't set up on this server yet — ask an admin."
+  setup_button: "Set up Google Slides"
+  choose_one: "Pick PowerPoint, Google Slides, or both."
+  review_button: "Review slides first"
+  later_button: "Not now"
+  convert_button: "Convert"
+  pptx_working: "Building PowerPoint…"
+  pptx_download: "Download .pptx"
+  pptx_failed: "PowerPoint failed: {error}"
+  gslides_working: "Uploading to Google Slides…"
+  gslides_open: "Open in Google Slides"
+  gslides_failed: "Google Slides failed: {error}"
+
+review:
+  count: "{included} of {total} slides included"
+  hint: "Click a slide to leave it out of the deck; click again to bring it back. Slides marked “Build step” are earlier stages of the slide after them (bullets still appearing), so they start out left out."
+  caption: "#{n} · {time}"
+  toggle_label: "Include or exclude slide {n}"
+  excluded_badge: "Excluded"
+  build_badge: "Build step"
+  view_button: "View"
+  convert_button: "Convert…"
+  close_button: "Close"
+  prev_button: "← Prev"
+  next_button: "Next →"
+  exclude_button: "Exclude"
+  include_button: "Include"
+
+google:
+  heading: "Google Slides"
+  description: "Decks go straight into your Google Drive as Google Slides. This app can only see the files it creates there."
+  not_connected: "Not connected."
+  connected_as: "Connected as {email}."
+  connect_button: "Connect Google account"
+  disconnect_button: "Disconnect"
+  disconnect_confirm: "Disconnect your Google account? Decks already in your Drive stay there."
+  connected_notice: "Google account connected."
+  failed_notice: "Connecting your Google account did not work. Please try again."
+  copy_button: "Copy"
+  copied_notice: "Copied."
+  noscope_notice: "Google didn't give this app access to Drive, so it can't create decks. Connect again, and on Google's screen tick the box for “See, edit, create and delete only the specific Google Drive files you use with this app”."
+  not_set_up_admin: "Google Slides isn't set up on this server yet."
+  setup_button: "Set it up in Settings"
+  not_set_up_user: "Google Slides isn't set up on this server yet. Ask an admin to set it up."
+
+settings:
+  heading: "Settings"
+  description: "Server-wide settings for everyone using this app. Changes apply to videos processed after you save; nothing needs a restart. Defaults come from config.yaml and app/pipeline/tunables.py."
+  save_button: "Save changes"
+  discard_button: "Discard"
+  saved_notice: "Saved. New jobs use these settings."
+  unsaved_notice: "Unsaved changes"
+  reset_button: "Reset"
+  default_label: "Default: {value}"
+  changed_label: "changed"
+  value_on: "on"
+  value_off: "off"
+  secret_set: "set (leave blank to keep)"
+  secret_unset: "not set"
+  redirect_hint: "Register this exact address as an Authorized redirect URI on the Google Cloud client:"
+  google_steps: "One-time setup in Google Cloud (console.cloud.google.com): enable the Google Drive API; under Google Auth Platform set Branding and Audience (External — add your Google account as a Test user, or publish the app); then Clients → Create client → Web application, with the redirect address below. Paste its Client ID and secret here."
+  auto: "auto"
+  groups:
+    processing: "Processing"
+    google: "Google Slides"
+    scan: "Slide-change detection"
+    capture: "Capture timing"
+    noise: "Talking-head suppression"
+    duplicates: "Duplicate filtering"
+    builds: "Incremental builds"
+    output: "Output"
+  fields:
+    max_concurrent:
+      label: "Videos processed at once"
+      help: "Each video already uses every core while scanning, so more than 1–2 mostly makes them all finish later."
+    scan_workers:
+      label: "Scan decoders per video"
+      help: "Parallel ffmpeg decoders while scanning. 0 = CPU cores minus one."
+    extract_workers:
+      label: "Frame grabs in parallel"
+      help: "ffmpeg processes capturing slide frames at once. More can cause disk contention."
+    keep_source:
+      label: "Keep videos after processing"
+      help: "Off saves disk space. On lets uploaded videos be processed again later."
+    upload_max_gb:
+      label: "Largest upload (GB)"
+      help: "Biggest single video accepted from the browser."
+    youtube_enabled:
+      label: "YouTube links"
+      help: "Show the YouTube box and accept video, playlist and channel links."
+    youtube_max_height:
+      label: "YouTube download resolution"
+      help: "Highest video height downloaded. Slides are readable well below 4K, and downloads are the slow part."
+    youtube_max_playlist_items:
+      label: "Playlist limit"
+      help: "Playlists and channels longer than this are cut off."
+    google_client_id:
+      label: "OAuth client ID"
+      help: "From the Google Cloud client (…apps.googleusercontent.com). Empty switches Google Slides export off."
+    google_client_secret:
+      label: "OAuth client secret"
+      help: "Stored encrypted. It is never shown again; type a new one to replace it."
+    google_redirect_url:
+      label: "Redirect address"
+      help: "Leave empty for the default shown below. Behind Docker or a reverse proxy, the address the browser actually uses."
+    stride:
+      label: "Frame step"
+      help: "Compare every Nth frame. Lower catches very brief flashes, but is proportionally slower."
+    coarse_diff_thresh:
+      label: "Change threshold"
+      help: "Average brightness change (0–255) between compared frames that counts as a slide change. Lower = more sensitive, more false positives."
+    gradual_window_sec:
+      label: "Fade window (s)"
+      help: "Also compare frames this far apart, to catch fade transitions too gradual for frame-to-frame."
+    gradual_cell_thresh:
+      label: "Fade: cell change"
+      help: "How much a patch of the picture must change to count towards a fade."
+    gradual_min_area:
+      label: "Fade: changed area"
+      help: "Fraction of the picture that must change for a fade (0–1). Keeps a moving webcam pane or one new bullet from counting."
+    min_gap_sec:
+      label: "Minimum gap between cuts (s)"
+      help: "Changes closer than this are reported once."
+    min_slide_sec:
+      label: "Transition burst (s)"
+      help: "Cuts closer than this are one transition (dissolve, wipe, animation); only its settled end is kept."
+    capture_pre_cut_sec:
+      label: "Capture before next change (s)"
+      help: "Each slide is captured this long before the next change, when every animated bullet has appeared."
+    capture_min_after_cut_sec:
+      label: "Capture after slide appears (s)"
+      help: "…but never sooner than this after the slide appeared, so the transition has settled."
+    noise_window_sec:
+      label: "Density window (s)"
+      help: "Window used to measure how often changes happen. Camera footage changes constantly; slides do not."
+    noise_min_rate:
+      label: "Changes per window"
+      help: "This many changes inside the window marks it as camera footage. Below 4 deletes real fast slide sequences."
+    noise_merge_gap_sec:
+      label: "Bridge gaps under (s)"
+      help: "Camera stretches separated by less than this are treated as one."
+    noise_min_run_duration_sec:
+      label: "Minimum camera stretch (s)"
+      help: "A camera stretch must last at least this long to be dropped…"
+    noise_min_run_len:
+      label: "Minimum changes in stretch"
+      help: "…and contain at least this many changes."
+    run_exit_quiet_sec:
+      label: "Quiet after camera (s)"
+      help: "If nothing changes for this long after a camera stretch, its last change is kept as a slide (the cut back to the slides)."
+    hash_size:
+      label: "Fingerprint size"
+      help: "Resolution of the perceptual fingerprint used to spot repeated captures."
+    hash_dist_thresh:
+      label: "Fingerprint difference"
+      help: "Fingerprint bits that must differ for a capture to count as new."
+    grid:
+      label: "Region grid"
+      help: "The picture is split into this many × this many regions for the duplicate check."
+    region_cell_thresh:
+      label: "Region change"
+      help: "Brightness change for a region to count as changed."
+    region_min_diff:
+      label: "Changed regions"
+      help: "Fraction of regions that must change for a capture to count as new. Both checks must agree before two captures are merged."
+    build_merge_enabled:
+      label: "Merge incremental builds"
+      help: "Leave out captures that the next capture only adds to (bullets still appearing). They stay in the review grid, excluded."
+    motion_pixel_thresh:
+      label: "Live-video pixel change"
+      help: "Brightness change that counts as movement when spotting live video (a webcam pane)."
+    motion_min_fraction:
+      label: "Live-video share"
+      help: "Pixels moving in at least this fraction of the video are ignored when comparing slides."
+    build_width:
+      label: "Comparison width (px)"
+      help: "Captures are compared at this width."
+    build_bg_tolerance:
+      label: "Background tolerance"
+      help: "Background brightness of two captures must match within this to be the same slide."
+    build_ink_thresh:
+      label: "Content threshold"
+      help: "Difference from the background that counts as content (text, drawings)."
+    build_cell:
+      label: "Comparison cell (px)"
+      help: "Size of the cells changes are counted in."
+    build_cell_min_pixels:
+      label: "Pixels per cell"
+      help: "Changed pixels a cell needs to count."
+    build_min_added_cells:
+      label: "Minimum added"
+      help: "The next capture must add at least this many cells of content."
+    build_max_loss_cells:
+      label: "Maximum lost"
+      help: "…while changing at most this many cells of existing content (a mouse pointer costs one or two)…"
+    build_max_loss_ratio:
+      label: "Maximum lost (share of added)"
+      help: "…or this fraction of what it adds, if that is more."
+    slide_width_in:
+      label: "Deck slide width (in)"
+      help: "PowerPoint slide width; the height follows the video's shape."
+    thumb_width:
+      label: "Thumbnail width (px)"
+      help: "Size of the review-grid previews."
+    jpeg_quality:
+      label: "Slide image quality"
+      help: "ffmpeg JPEG quality for captured slides: 2 is near-lossless, higher numbers are smaller and blurrier."

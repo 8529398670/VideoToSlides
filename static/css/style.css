@@ -1,0 +1,673 @@
+/*
+  Mobile-first: the base rules describe a narrow screen, and the min-width
+  blocks at the bottom add what a wider one can afford. Writing it the other
+  way round means phones download and then override desktop layout, which is
+  the common cause of a "responsive" page that still feels wrong on a phone.
+
+  Light is the default and stays the default. Dark is opt-in via
+  <html data-theme="dark"> rather than prefers-color-scheme, so the app looks
+  the same for everyone unless someone deliberately switches it.
+*/
+
+:root {
+  color-scheme: light;
+
+  --fg: #16191d;
+  --fg-muted: #5b6472;
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --border: #dfe3e8;
+  --accent: #1f5fd6;
+  --accent-fg: #ffffff;
+  --ok-bg: #e7f6ec;
+  --ok-fg: #14562c;
+  --warn-bg: #fdf3e2;
+  --warn-fg: #7a4b06;
+  --error-bg: #fdecec;
+  --error-fg: #8a1c1c;
+
+  --info-bg: #e8effc;
+  --info-fg: #1b4594;
+  --tile-bg: #eef1f5;
+  --backdrop: rgba(15, 18, 22, 0.45);
+
+  --radius: 10px;
+  --gap: 1rem;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --fg: #e8eaed;
+  --fg-muted: #9aa3b0;
+  --bg: #101215;
+  --card-bg: #191c21;
+  --border: #2c3138;
+  --accent: #6ea0ff;
+  --accent-fg: #0b0d10;
+  --ok-bg: #12301d;
+  --ok-fg: #94d9ab;
+  --warn-bg: #33270f;
+  --warn-fg: #e8c37a;
+  --error-bg: #351717;
+  --error-fg: #f0a3a3;
+  --info-bg: #15233d;
+  --info-fg: #a9c4ff;
+  --tile-bg: #22262c;
+  --backdrop: rgba(0, 0, 0, 0.6);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* `hidden` must win over any display rule below (a flex label, a grid),
+   or i18n and the scripts could not switch an element off. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px; /* 16px avoids iOS Safari zooming in on focused inputs */
+  line-height: 1.5;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+h1 { font-size: 1.35rem; margin: 0; }
+h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+p  { margin: 0 0 0.75rem; }
+
+.muted { color: var(--fg-muted); font-size: 0.9rem; }
+
+.app-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.who { font-size: 0.9rem; color: var(--fg-muted); }
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: var(--gap);
+  max-width: 46rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+/* Stacked by default so every control is full width and comfortably tappable
+   on a phone; the wide-screen block below turns this into a row. Each
+   label+input pair is wrapped in .field so the two move together when the
+   layout changes -- labels stay visible at every width, since a placeholder
+   disappears the moment someone starts typing and is not a label. */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+input, select {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  /* 44px is the usual floor for a reliable touch target. */
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button.secondary {
+  color: var(--fg);
+  background: transparent;
+  border-color: var(--border);
+}
+
+button.danger {
+  color: var(--error-fg);
+  background: var(--error-bg);
+  border-color: var(--error-fg);
+}
+
+button.small {
+  min-height: 36px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.notice {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.notice-ok    { background: var(--ok-bg);    color: var(--ok-fg); }
+.notice-warn  { background: var(--warn-bg);  color: var(--warn-fg); }
+.notice-error { background: var(--error-bg); color: var(--error-fg); }
+
+.notice-link {
+  background: var(--bg);
+  border: 1px dashed var(--accent);
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.notice-link code {
+  display: block;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  /* A login link is long and unbreakable; without this it forces the whole
+     page to scroll sideways on a phone. */
+  word-break: break-all;
+}
+
+/* Tables do not reflow. Rather than fight that, let this one scroll inside
+   its own box so it never widens the page itself. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+
+th, td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th { color: var(--fg-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+td .row-actions { display: flex; gap: 0.4rem; }
+
+.small-text { font-size: 0.85rem; }
+
+/* --- header: title (home) on the left, icon buttons on the right ------- */
+
+.brand { color: inherit; text-decoration: none; min-width: 0; }
+.brand:hover h1 { color: var(--accent); }
+
+.header-actions { display: flex; align-items: center; gap: 0.4rem; }
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.icon-button:hover { border-color: var(--accent); color: var(--accent); }
+.icon-button.is-active { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+
+.appearance-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+
+.button-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* Links that do what a button does (downloads, "open in Google Slides"). */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+a.button:hover, button.secondary:hover { border-color: var(--accent); }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.view { display: flex; flex-direction: column; gap: var(--gap); }
+.view[hidden] { display: none; }
+
+/* --- add videos ---------------------------------------------------------- */
+
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.25rem;
+  padding: 1.5rem 1rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition: border-color 120ms, background 120ms;
+}
+
+.drop-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.drop-zone.is-over {
+  border-color: var(--accent);
+  background: var(--info-bg);
+}
+
+.drop-title { font-weight: 600; font-size: 1.05rem; margin: 0; }
+
+.drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.upload-list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.upload-list:empty { display: none; }
+
+.upload-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.upload-row.is-done { border-color: var(--ok-fg); }
+.upload-row.is-failed { border-color: var(--error-fg); }
+
+.upload-name, .upload-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.upload-name span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+progress {
+  width: 100%;
+  height: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--tile-bg);
+  appearance: none;
+  -webkit-appearance: none;
+}
+progress::-webkit-progress-bar { background: var(--tile-bg); }
+progress::-webkit-progress-value { background: var(--accent); border-radius: 999px; }
+progress::-moz-progress-bar { background: var(--accent); border-radius: 999px; }
+
+.youtube-form { margin-top: 1rem; }
+
+/* --- the job list -------------------------------------------------------- */
+
+.jobs-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* Narrow screens: picture above the details, so the buttons get the full
+   width; wide screens put them side by side. */
+.job {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.job-thumb {
+  align-self: flex-start;
+  flex: 0 0 auto;
+  width: min(100%, 16rem);
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--tile-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.job-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.job-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+
+.job-title { font-weight: 600; overflow-wrap: anywhere; }
+
+.job-status { display: flex; align-items: center; gap: 0.5rem; }
+
+.job-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.25rem; }
+.job-gslides { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+
+.job .notice { margin: 0; }
+.job-body > a.button { align-self: flex-start; }
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--info-bg);
+  color: var(--info-fg);
+}
+
+.badge-ready     { background: var(--ok-bg);    color: var(--ok-fg); }
+.badge-failed    { background: var(--error-bg); color: var(--error-fg); }
+.badge-cancelled { background: var(--tile-bg);  color: var(--fg-muted); }
+.badge-queued    { background: var(--tile-bg);  color: var(--fg-muted); }
+
+.batch {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.batch-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
+.batch-head h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.batch-head p { margin: 0; }
+.batch-jobs { display: flex; flex-direction: column; gap: 0.5rem; }
+.batch .job { border-style: dashed; }
+
+/* --- dialogs: the export prompt and the review grid ---------------------- */
+
+dialog {
+  color: var(--fg);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+}
+
+dialog::backdrop { background: var(--backdrop); }
+
+.dialog-wide { width: min(64rem, calc(100vw - 2rem)); }
+
+.dialog form { margin: 0; display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; }
+
+.choices {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.choices legend { font-size: 0.85rem; font-weight: 600; color: var(--fg-muted); padding: 0 0.25rem; }
+
+label.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--fg);
+  min-height: 36px;
+  cursor: pointer;
+}
+
+label.choice.choice-sub { margin-left: 1.8rem; font-size: 0.9rem; font-weight: 400; min-height: 28px; }
+
+label.choice input { width: 1.2rem; height: 1.2rem; margin: 0; accent-color: var(--accent); }
+
+.choices p { margin: 0; }
+
+.export-list { margin: 0; padding-left: 1.2rem; max-height: 10rem; overflow-y: auto; font-size: 0.9rem; }
+.export-list:empty { display: none; }
+
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+
+.review-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.review-head h2 { margin: 0; overflow-wrap: anywhere; }
+.review-head p { margin: 0; }
+
+.slide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.slide-tile { margin: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+.tile-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: var(--tile-bg);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+}
+
+.tile-image img { display: block; width: 100%; height: 100%; object-fit: contain; transition: opacity 120ms, filter 120ms; }
+
+.tile-badge {
+  display: none;
+  position: absolute;
+  top: 0.35rem;
+  left: 0.35rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--error-fg);
+  background: var(--error-bg);
+}
+
+.slide-tile.is-excluded .tile-image { border-color: var(--border); border-style: dashed; }
+.slide-tile.is-excluded .tile-image img { opacity: 0.35; filter: grayscale(1); }
+.slide-tile.is-excluded .tile-badge { display: inline-block; }
+
+.slide-tile figcaption { display: flex; justify-content: space-between; align-items: center; gap: 0.25rem; color: var(--fg-muted); }
+
+/* The lightbox stays dark in both themes: it is a picture viewer. */
+.lightbox {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  padding: 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: rgba(8, 9, 11, 0.94);
+  color: #f2f3f5;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.lightbox[open] { display: flex; }
+.lightbox::backdrop { background: rgba(8, 9, 11, 0.94); }
+
+.lightbox img {
+  max-width: 100%;
+  max-height: calc(100vh - 6rem);
+  object-fit: contain;
+  border-radius: 4px;
+  background: #000;
+}
+
+.lightbox img.is-excluded { opacity: 0.4; filter: grayscale(1); }
+
+.lightbox-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lightbox-bar button { color: #f2f3f5; background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.2); }
+.lightbox-bar span { min-width: 6rem; text-align: center; font-size: 0.9rem; }
+
+/* --- Google Slides setup steps -------------------------------------------- */
+
+.setup-steps { margin: 0 0 0.75rem; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.setup-steps a { color: var(--accent); }
+.copy-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.3rem; }
+.copy-line code {
+  padding: 0.3rem 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+/* --- settings ------------------------------------------------------------- */
+
+.settings-form { display: flex; flex-direction: column; align-items: stretch; gap: var(--gap); margin: 0; }
+#settings-groups { display: flex; flex-direction: column; gap: var(--gap); }
+.settings-group h2 { margin-bottom: 0.25rem; }
+
+.setting-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.setting-row:first-of-type { border-top: 0; }
+.setting-row.is-dirty { box-shadow: inset 3px 0 0 var(--accent); padding-left: 0.6rem; }
+.setting-text label { color: var(--fg); font-size: 0.95rem; }
+.setting-text p { margin: 0.15rem 0 0; }
+.setting-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.25rem; }
+.setting-meta button.small { min-height: 28px; padding: 0.1rem 0.5rem; }
+.setting-input input[type="checkbox"] { width: 1.3rem; height: 1.3rem; accent-color: var(--accent); }
+.setting-input input[type="number"] { max-width: 10rem; }
+.redirect-box { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.25rem 0 0.5rem; }
+
+/* Save stays reachable at the bottom of a long page. */
+.settings-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.settings-bar span { margin-right: auto; }
+
+a.button.primary { color: var(--accent-fg); background: var(--accent); border-color: transparent; }
+
+@media (min-width: 40rem) {
+  .app-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+  }
+
+  h1 { font-size: 1.5rem; }
+
+  /* Enough room now to put a short form on one line. align-items: end keeps
+     the button's baseline with the inputs rather than their labels. */
+  form {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem;
+  }
+
+  /* Only now that the form is a row does a horizontal flex basis mean
+     anything -- setting it on the column layout would stretch each field to
+     12rem tall instead of wide. */
+  .field { flex: 1 1 12rem; }
+
+  form > button { flex: 0 0 auto; }
+
+  td, th { white-space: normal; }
+
+  .job { flex-direction: row; }
+
+  .setting-row { flex-direction: row; justify-content: space-between; align-items: flex-start; gap: 1.5rem; }
+  .setting-row.is-bool .setting-input { padding-top: 0.2rem; }
+  .setting-text { flex: 1 1 auto; }
+  .setting-input { flex: 0 0 16rem; display: flex; justify-content: flex-end; }
+  .setting-input input[type="text"], .setting-input input[type="password"], .setting-input select { width: 16rem; }
+  .job-thumb { width: 144px; }
+
+  .review-head { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+
+  .slide-grid { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
+
+  main { max-width: 52rem; }
+}

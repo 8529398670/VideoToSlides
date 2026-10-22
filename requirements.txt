@@ -1,0 +1,21 @@
+# Pinned, so the first build is reproducible and does not silently resolve to
+# newer versions. Every package here ships prebuilt wheels for Alpine
+# (musllinux) as well as glibc Linux, macOS, and Windows, so installing them
+# never needs a compiler -- the Dockerfile enforces that with --only-binary.
+#
+# Plain uvicorn, not uvicorn[standard]: uvloop and httptools would add speed
+# this app does not need, and more native code to trust.
+starlette==1.9.0
+uvicorn==0.54.0
+PyYAML==6.0.3
+PyNaCl==1.6.2
+bcrypt==5.0.0
+# The slide pipeline: frame math, images, the .pptx writer (lxml comes with it),
+# and YouTube downloads. yt-dlp[default] adds yt-dlp-ejs, the scripts its
+# JavaScript runtime (deno, installed in the Dockerfile) runs for YouTube.
+# yt-dlp tracks YouTube changes closely; when downloads start failing, bumping
+# it is usually the fix.
+numpy==2.5.4
+pillow==13.0.0
+python-pptx==1.0.2
+yt-dlp[default]==2026.8.19

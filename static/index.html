@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title data-i18n="app.title">&nbsp;</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <!-- Loaded before the body so a saved dark-mode choice applies before the
+       first paint. Light is the default; dark only when picked. -->
+  <script src="/js/theme.js"></script>
+</head>
+<body>
+  <!--
+    No text is hardcoded here. Every visible string carries a data-i18n key
+    that app/core/language.py loads from language.yaml at runtime, so the copy
+    can change (or be removed entirely) without editing this file.
+  -->
+  <header class="app-header">
+    <a href="#" class="brand" id="brand-link" data-i18n-attr="title:header.home">
+      <h1 data-i18n="app.title"></h1>
+      <p class="muted" data-i18n="app.tagline"></p>
+    </a>
+    <!-- Icons only appear once signed in; settings only for admins. -->
+    <div class="header-actions" id="header-actions" hidden>
+      <button type="button" id="settings-button" class="icon-button" hidden
+              data-i18n-attr="title:header.settings,aria-label:header.settings">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3.2"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <button type="button" id="profile-button" class="icon-button"
+              data-i18n-attr="title:header.profile,aria-label:header.profile">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main hidden id="main">
+    <section id="signed-out" class="card" hidden>
+      <h2 data-i18n="signed_out.heading"></h2>
+      <p data-i18n="signed_out.body"></p>
+      <p id="invalid-link" class="notice notice-warn" data-i18n="signed_out.invalid_link" hidden></p>
+    </section>
+
+    <!-- What a login link opens. Nothing is redeemed until the button is
+         pressed -- see renderLoginConfirm in app.js. -->
+    <section id="login-confirm" class="card" hidden>
+      <h2 data-i18n="login_confirm.heading"></h2>
+      <p data-i18n="login_confirm.body"></p>
+      <p id="login-switch-warning" class="notice notice-warn" hidden></p>
+      <button id="login-confirm-button" data-i18n="login_confirm.button"></button>
+    </section>
+
+    <section id="signed-in" hidden>
+
+      <!-- ================= Convert: get videos in, follow the jobs ======= -->
+      <div id="view-convert" class="view">
+        <div class="card" id="add-card">
+          <h2 data-i18n="convert.heading"></h2>
+
+          <!-- Drop files or whole folders. The two buttons are the same thing
+               for people who would rather browse (and for touch screens,
+               which cannot drag). See upload.js. -->
+          <div id="drop-zone" class="drop-zone" tabindex="0" role="button"
+               data-i18n-attr="aria-label:convert.drop_title">
+            <p class="drop-title" data-i18n="convert.drop_title"></p>
+            <p class="muted" data-i18n="convert.drop_hint"></p>
+            <div class="drop-actions">
+              <button type="button" id="pick-files" data-i18n="convert.pick_files"></button>
+              <button type="button" id="pick-folder" class="secondary" data-i18n="convert.pick_folder"></button>
+            </div>
+            <input type="file" id="file-input" multiple hidden />
+            <input type="file" id="folder-input" multiple webkitdirectory hidden />
+          </div>
+          <p id="skipped-notice" class="notice notice-warn" hidden></p>
+          <ul id="upload-list" class="upload-list"></ul>
+
+          <form id="youtube-form" class="youtube-form" autocomplete="off" hidden>
+            <div class="field">
+              <label for="youtube-url" data-i18n="convert.youtube_label"></label>
+              <input id="youtube-url" name="url" type="url" inputmode="url" required
+                     data-i18n-attr="placeholder:convert.youtube_placeholder" />
+            </div>
+            <button type="submit" id="youtube-submit" data-i18n="convert.youtube_button"></button>
+          </form>
+          <p id="youtube-hint" class="muted small-text" data-i18n="convert.youtube_hint" hidden></p>
+          <p id="youtube-added" class="notice notice-ok" hidden></p>
+        </div>
+
+        <div class="card" id="jobs-card">
+          <h2 data-i18n="jobs.heading"></h2>
+          <p id="jobs-empty" class="muted" data-i18n="jobs.empty" hidden></p>
+          <div id="jobs-list" class="jobs-list"></div>
+        </div>
+      </div>
+
+      <!-- ================= Account: the template's screens + Google ====== -->
+      <div id="view-account" class="view" hidden>
+        <div class="card">
+          <h2 data-i18n="account.heading"></h2>
+          <form id="rename-form" autocomplete="off">
+            <div class="field">
+              <label for="display-name" data-i18n="account.display_name_label"></label>
+              <input id="display-name" name="display_name" maxlength="80" required
+                     data-i18n-attr="placeholder:account.display_name_placeholder" />
+            </div>
+            <button type="submit" data-i18n="account.save_button"></button>
+          </form>
+          <p id="rename-saved" class="notice notice-ok" data-i18n="account.saved_notice" hidden></p>
+          <button id="logout-button" class="secondary" data-i18n="account.logout_button"></button>
+        </div>
+
+        <!-- Appearance: light by default; dark only when picked here, and
+             remembered in this browser. See theme.js. -->
+        <div class="card">
+          <h2 data-i18n="profile.appearance"></h2>
+          <div class="appearance-row">
+            <span class="muted" data-i18n="profile.theme_label"></span>
+            <button type="button" id="theme-toggle" class="secondary small"></button>
+          </div>
+        </div>
+
+        <!-- Google Slides export: each person connects their own Google
+             account. Needs the server's Google Cloud OAuth client, which an
+             admin sets in Settings. See google.js. -->
+        <div class="card" id="google-panel" hidden>
+          <h2 data-i18n="google.heading"></h2>
+          <p class="muted" data-i18n="google.description"></p>
+          <p id="google-result" class="notice" hidden></p>
+          <p id="google-status"></p>
+          <p id="google-unconfigured" class="notice notice-warn" hidden></p>
+          <div class="button-row">
+            <button type="button" id="google-connect" data-i18n="google.connect_button" hidden></button>
+            <button type="button" id="google-disconnect" class="secondary" data-i18n="google.disconnect_button" hidden></button>
+            <button type="button" id="google-setup" class="secondary" data-i18n="google.setup_button" hidden></button>
+          </div>
+        </div>
+
+        <!--
+          API keys: the non-browser way in, for every signed-in user. The role
+          select is revealed only for an admin (see keys.js) because a key can
+          never carry more permission than the account that owns it.
+        -->
+        <div class="card" id="api-keys-panel" hidden>
+          <h2 data-i18n="api_keys.heading"></h2>
+          <p class="muted" data-i18n="api_keys.description"></p>
+
+          <form id="create-key-form" autocomplete="off">
+            <div class="field">
+              <label for="key-name" data-i18n="api_keys.name_label"></label>
+              <input id="key-name" name="name" maxlength="80" required
+                     data-i18n-attr="placeholder:api_keys.name_placeholder" />
+            </div>
+            <div class="field" id="key-role-field" hidden>
+              <label for="key-role" data-i18n="api_keys.role_label"></label>
+              <select id="key-role" name="role">
+                <option value="user" data-i18n="api_keys.role_user"></option>
+                <option value="admin" data-i18n="api_keys.role_admin"></option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="key-days" data-i18n="api_keys.days_label"></label>
+              <input id="key-days" name="expires_in_days" type="number" min="0" max="3650" inputmode="numeric"
+                     data-i18n-attr="placeholder:api_keys.days_placeholder" />
+            </div>
+            <button type="submit" data-i18n="api_keys.create_button"></button>
+          </form>
+
+          <div id="key-secret-box" class="notice notice-link" hidden>
+            <p data-i18n="api_keys.secret_notice"></p>
+            <code id="key-secret-value"></code>
+            <button id="copy-key-button" class="secondary" data-i18n="api_keys.copy_button"></button>
+            <span id="key-copied-notice" class="muted" data-i18n="api_keys.copied_notice" hidden></span>
+          </div>
+
+          <div class="table-scroll">
+            <table id="keys-table">
+              <thead>
+                <tr>
+                  <th data-i18n="api_keys.table_name"></th>
+                  <th data-i18n="api_keys.table_role"></th>
+                  <th data-i18n="api_keys.table_status"></th>
+                  <th data-i18n="api_keys.table_last_used"></th>
+                  <th data-i18n="api_keys.table_expires"></th>
+                  <th data-i18n="api_keys.table_actions"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" id="admin-panel" hidden>
+          <h2 data-i18n="admin.heading"></h2>
+          <p class="muted" data-i18n="admin.description"></p>
+
+          <form id="create-user-form" autocomplete="off">
+            <div class="field">
+              <label for="new-name" data-i18n="admin.new_name_label"></label>
+              <input id="new-name" name="display_name" maxlength="80" required
+                     data-i18n-attr="placeholder:admin.new_name_placeholder" />
+            </div>
+            <div class="field">
+              <label for="new-role" data-i18n="admin.new_role_label"></label>
+              <select id="new-role" name="role">
+                <option value="user" data-i18n="admin.role_user"></option>
+                <option value="admin" data-i18n="admin.role_admin"></option>
+              </select>
+            </div>
+            <button type="submit" data-i18n="admin.create_button"></button>
+          </form>
+
+          <div id="login-link-box" class="notice notice-link" hidden>
+            <p data-i18n="admin.link_notice"></p>
+            <code id="login-link-value"></code>
+            <button id="copy-link-button" class="secondary" data-i18n="admin.copy_button"></button>
+            <span id="copied-notice" class="muted" data-i18n="admin.copied_notice" hidden></span>
+          </div>
+
+          <div class="table-scroll">
+            <table id="users-table">
+              <thead>
+                <tr>
+                  <th data-i18n="admin.table_name"></th>
+                  <th data-i18n="admin.table_role"></th>
+                  <th data-i18n="admin.table_status"></th>
+                  <th data-i18n="admin.table_actions"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Every key in the app, whoever owns it: the admin answer to "what
+             has standing access", and where a lost laptop's key gets killed. -->
+        <div class="card" id="admin-keys-panel" hidden>
+          <h2 data-i18n="admin_keys.heading"></h2>
+          <p class="muted" data-i18n="admin_keys.description"></p>
+
+          <div class="table-scroll">
+            <table id="admin-keys-table">
+              <thead>
+                <tr>
+                  <th data-i18n="admin_keys.table_owner"></th>
+                  <th data-i18n="api_keys.table_name"></th>
+                  <th data-i18n="api_keys.table_role"></th>
+                  <th data-i18n="api_keys.table_status"></th>
+                  <th data-i18n="api_keys.table_last_used"></th>
+                  <th data-i18n="api_keys.table_actions"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- ================= Settings: admins only. See settings.js. ======== -->
+      <div id="view-settings" class="view" hidden>
+        <div class="card">
+          <h2 data-i18n="settings.heading"></h2>
+          <p class="muted" data-i18n="settings.description"></p>
+        </div>
+        <form id="settings-form" class="settings-form" autocomplete="off" novalidate>
+          <div id="settings-groups"></div>
+          <div class="settings-bar">
+            <span id="settings-status" class="muted small-text"></span>
+            <button type="button" id="settings-discard" class="secondary" data-i18n="settings.discard_button"></button>
+            <button type="submit" id="settings-save" data-i18n="settings.save_button"></button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <p id="error-banner" class="notice notice-error" role="alert" hidden></p>
+  </main>
+
+  <!-- The prompt that appears when a video finishes: make a PowerPoint,
+       a Google Slides deck, or both. See export.js. -->
+  <dialog id="export-dialog" class="dialog">
+    <form id="export-form" method="dialog">
+      <h2 id="export-title"></h2>
+      <p id="export-summary" class="muted"></p>
+      <ul id="export-list" class="export-list"></ul>
+      <fieldset class="choices">
+        <legend data-i18n="export.choose"></legend>
+        <label class="choice" id="export-gslides-row">
+          <input type="checkbox" id="export-gslides" />
+          <span data-i18n="export.gslides"></span>
+        </label>
+        <label class="choice choice-sub" id="export-replace-row" hidden>
+          <input type="checkbox" id="export-replace" />
+          <span data-i18n="export.replace_label"></span>
+        </label>
+        <p id="export-google-note" class="muted small-text" hidden></p>
+        <button type="button" id="export-setup" class="secondary small" data-i18n="export.setup_button" hidden></button>
+        <label class="choice">
+          <input type="checkbox" id="export-pptx" />
+          <span data-i18n="export.pptx"></span>
+        </label>
+      </fieldset>
+      <p id="export-error" class="notice notice-error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="export-review" class="secondary" data-i18n="export.review_button"></button>
+        <button type="button" id="export-later" class="secondary" data-i18n="export.later_button"></button>
+        <button type="submit" id="export-go" data-i18n="export.convert_button"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Deleting a job; offers to trash its Google Slides deck too. See
+       Jobs.confirmDelete in jobs.js. -->
+  <dialog id="delete-dialog" class="dialog">
+    <form id="delete-form" method="dialog">
+      <h2 data-i18n="jobs.delete_title"></h2>
+      <p id="delete-question"></p>
+      <label class="choice" id="delete-google-row" hidden>
+        <input type="checkbox" id="delete-google" />
+        <span data-i18n="jobs.delete_google_label"></span>
+      </label>
+      <p id="delete-error" class="notice notice-error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="delete-cancel" class="secondary" data-i18n="jobs.delete_cancel"></button>
+        <button type="submit" id="delete-go" class="danger" data-i18n="jobs.delete_go"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Review: every extracted slide; click one to leave it out of the deck. -->
+  <dialog id="review-dialog" class="dialog dialog-wide">
+    <div class="review-head">
+      <div>
+        <h2 id="review-title"></h2>
+        <p id="review-count" class="muted"></p>
+      </div>
+      <div class="button-row">
+        <button type="button" id="review-convert" data-i18n="review.convert_button"></button>
+        <button type="button" id="review-close" class="secondary" data-i18n="review.close_button"></button>
+      </div>
+    </div>
+    <p class="muted small-text" data-i18n="review.hint"></p>
+    <div id="review-grid" class="slide-grid"></div>
+  </dialog>
+
+  <dialog id="lightbox" class="lightbox">
+    <img id="lightbox-image" alt="" />
+    <div class="lightbox-bar">
+      <button type="button" id="lightbox-prev" class="small" data-i18n="review.prev_button"></button>
+      <span id="lightbox-caption"></span>
+      <button type="button" id="lightbox-next" class="small" data-i18n="review.next_button"></button>
+      <button type="button" id="lightbox-toggle" class="small"></button>
+      <button type="button" id="lightbox-close" class="small" data-i18n="review.close_button"></button>
+    </div>
+  </dialog>
+
+  <!--
+    Plain scripts in dependency order. No bundler, no modules that need a
+    build step: each file adds one global and the browser runs them as-is.
+    Third-party libraries go in /vendor/ (downloaded once, served by us) so
+    the Content-Security-Policy can stay locked to 'self'.
+  -->
+  <script src="/js/dom.js"></script>
+  <script src="/js/i18n.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/keys.js"></script>
+  <script src="/js/google.js"></script>
+  <script src="/js/export.js"></script>
+  <script src="/js/review.js"></script>
+  <script src="/js/upload.js"></script>
+  <script src="/js/youtube.js"></script>
+  <script src="/js/jobs.js"></script>
+  <script src="/js/settings.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
