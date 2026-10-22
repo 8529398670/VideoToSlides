@@ -1,4 +1,5 @@
-"""A signed-in user's jobs: list them, look at one, cancel, retry, delete.
+"""A signed-in user's jobs: list them, look at one, cancel, retry, delete --
+one at a time, or a whole batch (playlist or dropped folder) at once.
 
 Every handler works only on the caller's own jobs (owned_job). Starting a
 job is not here -- it happens when an upload completes (uploads.py) or a
@@ -12,7 +13,7 @@ from starlette.responses import JSONResponse, Response
 from app.core.security import actor_from, check_csrf
 from app.google import oauth
 from app.jobs import exports, files
-from app.models import jobs
+from app.models import combined, jobs
 from app.routes.helpers import (
     bad_request,
     error,
@@ -98,12 +99,71 @@ async def delete_job(request: Request) -> Response:
             await run(exports.delete_google_deck, store, get_config(request), job)
         except (exports.ExportError, oauth.GoogleError) as failure:
             return error(502, f"the Google Slides deck could not be deleted: {failure}")
+    await _remove(request, job)
+    if job.batch:
+        await run(_drop_empty_combined, store, get_config(request), job.user_id, job.batch)
+    return JSONResponse({"ok": True})
+
+
+async def _remove(request: Request, job: jobs.Job) -> None:
+    store = get_store(request)
     if job.active:
         await run(jobs.cancel_job, store, job.id)
         await get_dispatcher(request).cancel(job.id)
     await run(jobs.delete_job, store, job.id)
     await run(files.delete_job_files, get_config(request), job.id)
-    return JSONResponse({"ok": True})
+
+
+async def delete_batch(request: Request) -> Response:
+    """Every video of one batch, and its combined deck. With delete_google,
+    all their Google Slides decks go to the Drive trash first; if any of
+    that fails nothing is deleted here (decks already trashed stay in the
+    Drive trash, where they can be restored)."""
+    body = await _checked_body(request)
+    if body is None:
+        return forbidden("invalid csrf token")
+    batch = body.get("batch")
+    if not isinstance(batch, str) or not batch:
+        return bad_request("malformed request body")
+    store, cfg = get_store(request), get_config(request)
+    user_id = actor_from(request).user.id
+    found = [job for job in await run(jobs.list_user_jobs, store, user_id) if job.batch == batch]
+    combo = await run(combined.find, store, user_id, batch)
+    if not found and combo is None:
+        return not_found("no such batch")
+
+    if body.get("delete_google") is True:
+        decks = [item for item in found if item.gslides_file_id]
+        if combo is not None and combo.gslides_file_id:
+            decks.append(combo)
+        failures = 0
+        last = ""
+        for item in decks:
+            try:
+                await run(exports.delete_google_deck, store, cfg, item)
+            except (exports.ExportError, oauth.GoogleError) as failure:
+                failures += 1
+                last = str(failure)
+        if failures:
+            return error(502, f"{failures} of {len(decks)} Google Slides deck(s) could not be deleted: {last}")
+
+    for job in found:
+        await _remove(request, job)
+    if combo is not None:
+        await run(combined.delete, store, combo.id)
+        await run(files.delete_combined_files, cfg, combo.id)
+    return JSONResponse({"ok": True, "deleted": len(found)})
+
+
+def _drop_empty_combined(store, cfg, user_id: int, batch: str) -> None:
+    """The batch's last video is gone, so its combined deck record and file
+    go too. A Google deck it made stays in Drive."""
+    if any(other.batch == batch for other in jobs.list_user_jobs(store, user_id)):
+        return
+    combo = combined.find(store, user_id, batch)
+    if combo is not None:
+        combined.delete(store, combo.id)
+        files.delete_combined_files(cfg, combo.id)
 
 
 async def set_slide_excluded(request: Request) -> Response:

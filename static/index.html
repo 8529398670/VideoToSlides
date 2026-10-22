@@ -305,6 +305,10 @@
           <input type="checkbox" id="export-pptx" />
           <span data-i18n="export.pptx"></span>
         </label>
+        <label class="choice">
+          <input type="checkbox" id="export-pdf" />
+          <span data-i18n="export.pdf"></span>
+        </label>
       </fieldset>
       <p id="export-error" class="notice notice-error" hidden></p>
       <div class="dialog-actions">
@@ -315,15 +319,58 @@
     </form>
   </dialog>
 
-  <!-- Deleting a job; offers to trash its Google Slides deck too. See
-       Jobs.confirmDelete in jobs.js. -->
+  <!-- "Convert all into one": a batch's videos in one deck, in an order the
+       person can drag into shape, any of them left out. See combine.js. -->
+  <dialog id="combine-dialog" class="dialog">
+    <form id="combine-form" method="dialog">
+      <h2 data-i18n="combine.heading"></h2>
+      <div class="field">
+        <label for="combine-title" data-i18n="combine.title_label"></label>
+        <input id="combine-title" maxlength="200" required />
+      </div>
+      <div class="combine-order-head">
+        <p class="muted small-text" data-i18n="combine.hint"></p>
+        <button type="button" id="combine-sort" class="secondary small" data-i18n="combine.sort_button"></button>
+      </div>
+      <ol id="combine-list" class="combine-list"></ol>
+      <p id="combine-summary" class="muted small-text"></p>
+      <fieldset class="choices">
+        <legend data-i18n="export.choose"></legend>
+        <label class="choice">
+          <input type="checkbox" id="combine-gslides" />
+          <span data-i18n="export.gslides"></span>
+        </label>
+        <label class="choice choice-sub" id="combine-replace-row" hidden>
+          <input type="checkbox" id="combine-replace" />
+          <span data-i18n="export.replace_label"></span>
+        </label>
+        <p id="combine-google-note" class="muted small-text" hidden></p>
+        <label class="choice">
+          <input type="checkbox" id="combine-pptx" />
+          <span data-i18n="export.pptx"></span>
+        </label>
+        <label class="choice">
+          <input type="checkbox" id="combine-pdf" />
+          <span data-i18n="combine.pdf"></span>
+        </label>
+      </fieldset>
+      <p id="combine-error" class="notice notice-error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="combine-cancel" class="secondary" data-i18n="combine.cancel_button"></button>
+        <button type="submit" id="combine-go" data-i18n="combine.convert_button"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Deleting a job, or a whole batch; offers to trash the Google Slides
+       deck(s) too. See Jobs.confirmDelete in jobs.js. -->
   <dialog id="delete-dialog" class="dialog">
     <form id="delete-form" method="dialog">
-      <h2 data-i18n="jobs.delete_title"></h2>
+      <h2 id="delete-title" data-i18n="jobs.delete_title"></h2>
       <p id="delete-question"></p>
       <label class="choice" id="delete-google-row" hidden>
         <input type="checkbox" id="delete-google" />
-        <span data-i18n="jobs.delete_google_label"></span>
+        <span id="delete-google-text" data-i18n="jobs.delete_google_label"></span>
       </label>
       <p id="delete-error" class="notice notice-error" hidden></p>
       <div class="dialog-actions">
@@ -372,6 +419,7 @@
   <script src="/js/keys.js"></script>
   <script src="/js/google.js"></script>
   <script src="/js/export.js"></script>
+  <script src="/js/combine.js"></script>
   <script src="/js/review.js"></script>
   <script src="/js/upload.js"></script>
   <script src="/js/youtube.js"></script>

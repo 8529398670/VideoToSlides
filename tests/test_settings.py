@@ -8,7 +8,7 @@ import dataclasses
 import unittest
 from pathlib import Path
 
-from app.core import settings
+from app.core import machine, settings
 from app.core.config import Config
 from app.pipeline import tunables as T
 
@@ -22,6 +22,30 @@ def base_config() -> Config:
         api_key_ttl_seconds=1, secret_key="0" * 64,
         google_redirect_url="http://localhost:8010/api/google/callback",
     )
+
+
+class CpuLimitTests(unittest.TestCase):
+    def test_no_limit_keeps_the_configured_workers(self) -> None:
+        cfg = dataclasses.replace(base_config(), jobs_scan_workers=11, jobs_extract_workers=6, jobs_cpu_limit=0)
+        self.assertEqual(machine.worker_plan(cfg), (11, 6))
+
+    def test_limit_is_shared_between_videos(self) -> None:
+        cfg = dataclasses.replace(base_config(), jobs_scan_workers=11, jobs_extract_workers=6, jobs_cpu_limit=4)
+        self.assertEqual(machine.worker_plan(cfg), (4, 4))
+        two = dataclasses.replace(cfg, jobs_max_concurrent=2)
+        self.assertEqual(machine.worker_plan(two), (2, 2))
+        tiny = dataclasses.replace(cfg, jobs_cpu_limit=1, jobs_max_concurrent=3)
+        self.assertEqual(machine.worker_plan(tiny), (1, 1))
+
+    def test_setting_and_machine_on_the_page(self) -> None:
+        self.assertEqual(settings.merged({}, {"cpu_limit": "3"}), {"cpu_limit": 3})
+        with self.assertRaises(settings.SettingsError):
+            settings.merged({}, {"cpu_limit": 2.5})
+        page = settings.describe(base_config(), {"cpu_limit": 3})
+        field = next(f for g in page["groups"] for f in g["fields"] if f["key"] == "cpu_limit")
+        self.assertEqual((field["value"], field["max"]), (3, machine.detect().cores))
+        self.assertGreaterEqual(page["machine"]["cores"], 1)
+        self.assertTrue(page["machine"]["cpu"])
 
 
 class SettingsTests(unittest.TestCase):

@@ -1,5 +1,5 @@
-"""Turning a finished job into a PowerPoint and/or a Google Slides deck, and
-downloading the results.
+"""Turning a finished job into a PowerPoint, a PDF and/or a Google Slides
+deck, and downloading the results.
 
 POST /export answers at once and builds in the background; the job's
 `exports` field reports progress, which the page polls. Downloads build the
@@ -11,6 +11,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
 
 from app.core.security import check_csrf
+from app.google import oauth
 from app.jobs import exports, files
 from app.models import google_accounts, jobs
 from app.routes.helpers import (
@@ -27,6 +28,7 @@ from app.routes.helpers import (
 )
 
 PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+PDF_MIME = "application/pdf"
 
 
 def _google_ready(store, cfg, user_id: int) -> bool:
@@ -41,7 +43,7 @@ async def start_export(request: Request) -> Response:
         return forbidden("invalid csrf token")
     kinds = [kind for kind in jobs.EXPORT_KINDS if body.get(kind) is True]
     if not kinds:
-        return bad_request("choose PowerPoint, Google Slides, or both")
+        return bad_request("choose PowerPoint, PDF or Google Slides")
     # Converting again replaces the job's Google deck unless a copy is asked for.
     gslides_new = body.get("gslides_new") is True
 
@@ -61,6 +63,31 @@ async def start_export(request: Request) -> Response:
     return JSONResponse(started.to_public())
 
 
+async def delete_gslides(request: Request) -> Response:
+    """Move the job's Google Slides deck to the Drive trash and forget it.
+    The job and its slides stay; Convert makes a fresh deck afterwards."""
+    body = await read_json(request)
+    if body is None or not check_csrf(request, body.get("csrf_token")):
+        return forbidden("invalid csrf token")
+    job = await owned_job(request)
+    if job is None:
+        return not_found("no such job")
+    if (job.exports.get(jobs.EXPORT_GSLIDES) or {}).get("status") == jobs.EXPORT_WORKING:
+        return error(409, "the Google Slides deck is being updated -- try again when it finishes")
+    file_id = job.gslides_file_id
+    if not file_id:
+        return not_found("this video has no Google Slides deck")
+    store = get_store(request)
+    try:
+        await run(exports.delete_google_deck, store, get_config(request), job)
+    except (exports.ExportError, oauth.GoogleError) as failure:
+        return error(502, f"the Google Slides deck could not be deleted: {failure}")
+    updated = await run(jobs.forget_gslides, store, job.id, file_id)
+    if updated is None:
+        return error(409, "the Google Slides deck is being updated -- try again when it finishes")
+    return JSONResponse(updated.to_public())
+
+
 async def download_pptx(request: Request) -> Response:
     job = await owned_job(request)
     if job is None:
@@ -69,6 +96,17 @@ async def download_pptx(request: Request) -> Response:
     if not path.is_file():
         return not_found("no deck has been built yet")
     return FileResponse(path, media_type=PPTX_MIME, filename=files.download_name(job.title, ".pptx"),
+                        headers={"cache-control": "no-store"})
+
+
+async def download_pdf(request: Request) -> Response:
+    job = await owned_job(request)
+    if job is None:
+        return not_found("no such job")
+    path = files.job_dir(get_config(request), job.id) / files.PDF_FILE
+    if not path.is_file():
+        return not_found("no PDF has been built yet")
+    return FileResponse(path, media_type=PDF_MIME, filename=files.download_name(job.title, ".pdf"),
                         headers={"cache-control": "no-store"})
 
 

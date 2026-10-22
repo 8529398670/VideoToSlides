@@ -53,6 +53,18 @@ class DeckRecordTests(StoreTest):
         self.assertEqual(again.to_public()["gslides_url"], "https://deck/1")
         self.assertNotIn("abc", str(again.to_public()))
 
+    def test_forgetting_the_deck_keeps_the_job(self) -> None:
+        job = ready_job(self.store)
+        jobs.finish_export(self.store, job.id, jobs.EXPORT_GSLIDES, url="https://deck/1", file_id="abc")
+        self.assertIsNone(jobs.forget_gslides(self.store, job.id, "other"))
+        jobs.start_export(self.store, job.id, [jobs.EXPORT_GSLIDES])
+        self.assertIsNone(jobs.forget_gslides(self.store, job.id, "abc"))
+        jobs.finish_export(self.store, job.id, jobs.EXPORT_GSLIDES, error="boom")
+        forgotten = jobs.forget_gslides(self.store, job.id, "abc")
+        self.assertIsNone(forgotten.gslides_url)
+        self.assertEqual(forgotten.status, jobs.STATUS_READY)
+        self.assertEqual(len(forgotten.slides), 1)
+
     def test_older_exports_fall_back_to_the_link(self) -> None:
         job = ready_job(self.store)
         jobs.finish_export(self.store, job.id, jobs.EXPORT_GSLIDES,

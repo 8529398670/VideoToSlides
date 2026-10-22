@@ -110,6 +110,17 @@ jobs:
   scan_workers: 0
   # Parallel ffmpeg frame grabs per video (more causes I/O contention).
   extract_workers: 6
+  # The most CPU cores processing may keep busy, shared between the videos
+  # processed at once. 0 = no limit (the scan uses every core but one).
+  cpu_limit: 0
+  # YouTube videos downloaded ahead, while others are being processed, so
+  # processing never waits for a download. One downloads at a time; this is
+  # how many may be fetched or waiting on disk. 0 = download each video only
+  # when its processing starts.
+  downloads_ahead: 2
+  # Run processing at background priority, so the rest of the machine (the
+  # mouse, other apps) stays responsive. It still uses idle cores fully.
+  low_priority: true
   # Keep the uploaded/downloaded video after its slides are extracted. Off
   # saves the disk space; a failed job always keeps its video so it can be
   # retried.

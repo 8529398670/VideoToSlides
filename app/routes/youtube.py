@@ -17,9 +17,10 @@ from app.routes.helpers import bad_request, forbidden, get_config, get_dispatche
 from app.sources import youtube
 
 
-def _queue(store: Store, user_id: int, batch: str | None, entries: list[youtube.Entry]) -> list[jobs.Job]:
+def _queue(store: Store, user_id: int, playlist: youtube.Playlist | None, entries: list[youtube.Entry]) -> list[jobs.Job]:
     return [
-        jobs.create_job(store, user_id, jobs.SOURCE_YOUTUBE, entry.title, source_url=entry.url, batch=batch)
+        jobs.create_job(store, user_id, jobs.SOURCE_YOUTUBE, entry.title, source_url=entry.url,
+                        batch=playlist.title if playlist else None, playlist=entry.playlist_info(playlist))
         for entry in entries
     ]
 
@@ -38,9 +39,9 @@ async def add_youtube(request: Request) -> Response:
         return bad_request("that is not a YouTube URL")
 
     try:
-        batch, entries = await run(youtube.expand, url, cfg.youtube_max_playlist_items)
+        playlist, entries = await run(youtube.expand, url, cfg.youtube_max_playlist_items)
     except youtube.YouTubeError as failure:
         return bad_request(str(failure))
-    created = await run(_queue, get_store(request), actor_from(request).user.id, batch, entries)
+    created = await run(_queue, get_store(request), actor_from(request).user.id, playlist, entries)
     get_dispatcher(request).poke()
-    return JSONResponse({"batch": batch, "jobs": [job.to_public() for job in created]}, status_code=201)
+    return JSONResponse({"batch": created[0].batch if created else None, "jobs": [job.to_public() for job in created]}, status_code=201)

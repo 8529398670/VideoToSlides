@@ -20,7 +20,7 @@ const Export = {
   google: { enabled: false , connected: false , email: null },
   storageKey: "videotoslides.export.v2",
   resumeKey: "videotoslides.resumeExport",
-  defaults: { pptx: false , gslides: true },
+  defaults: { pptx: false , gslides: true , pdf: false },
 
   init( me ) {
     this.me = me;
@@ -59,7 +59,7 @@ const Export = {
     if ( !found.length ) return false;
     for ( const job of found ) {
       try {
-        await Api.exportJob( job.id , false , true );
+        await Api.exportJob( job.id , { gslides: true } );
       } catch ( error ) {
         App.showError( job.title + ": " + error.message );
       }
@@ -76,7 +76,9 @@ const Export = {
   remembered() {
     try {
       const saved = JSON.parse( window.localStorage.getItem( this.storageKey ) || "null" );
-      if ( saved && typeof saved.pptx === "boolean" && typeof saved.gslides === "boolean" ) return saved;
+      if ( saved && typeof saved.pptx === "boolean" && typeof saved.gslides === "boolean" ) {
+        return { pptx: saved.pptx , gslides: saved.gslides , pdf: saved.pdf === true };
+      }
     } catch ( error ) { /* defaults */ }
     return this.defaults;
   },
@@ -90,6 +92,7 @@ const Export = {
       const choice = this.remembered();
       Dom.get( "export-pptx" ).checked = choice.pptx;
       Dom.get( "export-gslides" ).checked = choice.gslides;
+      Dom.get( "export-pdf" ).checked = choice.pdf;
       Dom.get( "export-replace" ).checked = true;
     }
     this.render();
@@ -122,7 +125,7 @@ const Export = {
     if ( !available ) {
       // Shown, but cannot be chosen yet; make sure Convert still does something.
       gslides.checked = false;
-      if ( !pptx.checked ) pptx.checked = true;
+      if ( !pptx.checked && !Dom.get( "export-pdf" ).checked ) pptx.checked = true;
     }
     let note = "";
     const admin = Boolean( this.me && this.me.role === "admin" );
@@ -147,29 +150,30 @@ const Export = {
     event.preventDefault();
     const pptx = Dom.get( "export-pptx" ).checked;
     const gslides = Dom.get( "export-gslides" ).checked && this.googleAvailable();
+    const pdf = Dom.get( "export-pdf" ).checked;
     const gslidesNew = !Dom.get( "export-replace" ).checked;
     const problem = Dom.get( "export-error" );
-    if ( !pptx && !gslides ) {
+    if ( !pptx && !gslides && !pdf ) {
       Dom.text( problem , I18n.get( "export.choose_one" ) );
       Dom.show( problem , true );
       return;
     }
     if ( this.googleAvailable() ) {
       try {
-        window.localStorage.setItem( this.storageKey , JSON.stringify( { pptx: pptx , gslides: gslides } ) );
+        window.localStorage.setItem( this.storageKey , JSON.stringify( { pptx: pptx , gslides: gslides , pdf: pdf } ) );
       } catch ( error ) { /* not remembered */ }
     }
 
-    // Google chosen but not connected yet: build any PowerPoint now, then go
+    // Google chosen but not connected yet: build any PowerPoint / PDF now, then go
     // through Google's consent screen; the Google export runs on return.
     const connectFirst = gslides && !this.google.connected;
     const button = Dom.get( "export-go" );
     button.disabled = true;
     const failures = [];
     for ( const job of this.pending ) {
-      if ( connectFirst && !pptx ) continue;
+      if ( connectFirst && !pptx && !pdf ) continue;
       try {
-        await Api.exportJob( job.id , pptx , connectFirst ? false : gslides , gslidesNew );
+        await Api.exportJob( job.id , { pptx: pptx , pdf: pdf , gslides: connectFirst ? false : gslides , gslides_new: gslidesNew } );
       } catch ( error ) {
         failures.push( job.title + ": " + error.message );
       }

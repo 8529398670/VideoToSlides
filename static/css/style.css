@@ -418,10 +418,76 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 999px; }
   gap: 0.75rem;
 }
 
-.batch-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
+.batch-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .batch-head h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
-.batch-head p { margin: 0; }
+
+/* The accordion header: the whole title area opens and closes the batch. */
+button.batch-toggle {
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.25rem 0.25rem;
+  text-align: left;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  font-weight: 400;
+}
+button.batch-toggle:hover h3 { color: var(--accent); }
+/* Drawn with two borders: points right when closed, down when open. */
+.batch-chevron {
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: 0 0.3rem 0 0.2rem;
+  border-right: 2px solid var(--fg-muted);
+  border-bottom: 2px solid var(--fg-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+.batch.is-open .batch-chevron { transform: rotate(45deg); }
+.batch-heading { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.batch-progress { width: 100%; }
+@media (prefers-reduced-motion: reduce) { .batch-chevron { transition: none; } }
 .batch-jobs { display: flex; flex-direction: column; gap: 0.5rem; }
+.batch-jobs[hidden] { display: none; }
+.batch-buttons { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.batch-combined { display: flex; flex-direction: column; gap: 0.35rem; }
+.batch-combined > p { margin: 0; }
+
+/* The combine dialog's reorderable list. */
+/* .field grows sideways in inline forms; in this column it must not grow. */
+.dialog .field { flex: none; }
+.combine-order-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.combine-order-head p { margin: 0; }
+.combine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: min(22rem, 45vh);
+  overflow-y: auto;
+}
+.combine-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+.combine-item.is-dragging { opacity: 0.4; }
+.combine-item.is-left-out .combine-name { color: var(--fg-muted); text-decoration: line-through; }
+.combine-handle { cursor: grab; color: var(--fg-muted); padding: 0 0.2rem; user-select: none; font-size: 1.1rem; line-height: 1; }
+.combine-item input { width: 1.2rem; height: 1.2rem; margin: 0; flex: none; accent-color: var(--accent); }
+.combine-name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.combine-name span:first-child { overflow-wrap: anywhere; font-size: 0.9rem; }
+.combine-item button.small { min-height: 32px; min-width: 32px; padding: 0.2rem 0.4rem; }
 .batch .job { border-style: dashed; }
 
 /* --- dialogs: the export prompt and the review grid ---------------------- */
@@ -671,3 +737,7 @@ a.button.primary { color: var(--accent-fg); background: var(--accent); border-co
 
   main { max-width: 52rem; }
 }
+
+/* Settings: the CPU cores slider and its readout. */
+.cores-input { display: flex; flex-direction: column; gap: 0.25rem; min-width: min(16rem, 100%); }
+.cores-slider { width: 100%; padding: 0; border: 0; background: transparent; accent-color: var(--accent); }

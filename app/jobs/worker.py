@@ -1,4 +1,6 @@
 """`python -m app worker <job_id>` -- turn one job's video into slides.
+`python -m app worker <job_id> fetch` -- only download its YouTube video,
+ahead of its turn (the dispatcher runs these while others are processed).
 
 Started by the dispatcher, one process per job, never by hand (though running
 it by hand against a job in the "starting" state works, which is useful when
@@ -18,7 +20,7 @@ import time
 import traceback
 from typing import Callable
 
-from app.core import config, db, settings
+from app.core import config, db, machine, settings
 from app.models import settings as settings_model
 from app.jobs import files
 from app.models import jobs
@@ -31,6 +33,35 @@ PROGRESS_WRITE_INTERVAL = 0.5
 
 class WorkerError(Exception):
     """A failure whose message is meant for the person who started the job."""
+
+
+def throttled_fetch_reporter(store: db.Store, job_id: int) -> Callable[[float], None]:
+    last = {"at": 0.0}
+
+    def report(fraction: float) -> None:
+        now = time.monotonic()
+        if now - last["at"] < PROGRESS_WRITE_INTERVAL and fraction < 1.0:
+            return
+        last["at"] = now
+        jobs.set_fetch_progress(store, job_id, fraction)
+
+    return report
+
+
+def fetch(cfg: config.Config, store: db.Store, job: jobs.Job) -> None:
+    """Download the video into the job's directory and put the job back in
+    the queue, ready to process. A cancel meanwhile wins: the download is
+    then thrown away (and the process is usually killed before this)."""
+    if not job.source_url:
+        raise WorkerError("the job has no YouTube link")
+    directory = files.job_dir(cfg, job.id)
+    directory.mkdir(parents=True, exist_ok=True)
+    source, title = youtube.download(job.source_url, directory, cfg.tmp_dir, cfg.youtube_max_height,
+                                     throttled_fetch_reporter(store, job.id))
+    if jobs.finish_fetch(store, job.id, source.name, title):
+        log(job.id, f"downloaded ahead {title!r}")
+    else:
+        source.unlink(missing_ok=True)
 
 
 def throttled_reporter(store: db.Store, job_id: int) -> Callable[[str, float], None]:
@@ -71,8 +102,9 @@ def process(cfg: config.Config, store: db.Store, job: jobs.Job) -> None:
         jobs.set_source(store, job.id, source.name, title)
         log(job.id, f"downloaded {title!r}")
 
+    scan_workers, extract_workers = machine.worker_plan(cfg)
     result = runner.process_video(
-        source, directory, cfg.jobs_scan_workers, cfg.jobs_extract_workers, report,
+        source, directory, scan_workers, extract_workers, report,
         log=lambda message: log(job.id, message),
     )
     finished = jobs.finish_job(
@@ -93,9 +125,10 @@ def process(cfg: config.Config, store: db.Store, job: jobs.Job) -> None:
 
 
 def run(arguments: list[str]) -> None:
-    if len(arguments) != 1 or not arguments[0].isdigit():
-        raise SystemExit("usage: python -m app worker <job_id>")
+    if not 1 <= len(arguments) <= 2 or not arguments[0].isdigit() or arguments[1:] not in ([], ["fetch"]):
+        raise SystemExit("usage: python -m app worker <job_id> [fetch]")
     job_id = int(arguments[0])
+    fetching = arguments[1:] == ["fetch"]
     cfg = config.load()
     store = db.open_store(cfg.database_path, cfg.secret_key, cfg.encrypt_at_rest)
     # What an admin changed in Settings, as of this job's start.
@@ -104,11 +137,27 @@ def run(arguments: list[str]) -> None:
     cfg = settings.apply_config(cfg, overrides)
 
     job = jobs.get_job(store, job_id)
+    if fetching:
+        if job is None or job.status != jobs.STATUS_FETCHING:
+            return
+        if cfg.jobs_low_priority:
+            machine.lower_priority()
+        try:
+            fetch(cfg, store, job)
+        except (WorkerError, youtube.YouTubeError) as error:
+            log(job_id, f"download failed: {error}")
+            jobs.fail_fetch(store, job_id, str(error))
+        except Exception as error:  # noqa: BLE001
+            traceback.print_exc(file=sys.stderr)
+            jobs.fail_fetch(store, job_id, f"download failed ({type(error).__name__}) -- see the server log")
+        return
     if job is None or job.status != jobs.STATUS_STARTING:
         # Claimed by the dispatcher, then cancelled before this process got
         # here -- nothing to do.
         return
 
+    if cfg.jobs_low_priority:
+        machine.lower_priority()
     try:
         process(cfg, store, job)
     except (WorkerError, ProbeError, youtube.YouTubeError) as error:

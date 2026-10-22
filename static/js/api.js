@@ -113,19 +113,33 @@ const Api = {
   deleteJob( jobId , deleteGoogle ) {
     return this.post( "/api/jobs/" + jobId + "/delete" , { delete_google: Boolean( deleteGoogle ) } );
   },
+  deleteBatch( batch , deleteGoogle ) {
+    return this.post( "/api/batches/delete" , { batch: batch , delete_google: Boolean( deleteGoogle ) } );
+  },
   setExcluded( jobId , n , excluded ) {
     return this.post( "/api/jobs/" + jobId + "/slides/" + n + "/exclude" , { excluded: excluded } );
   },
+  deleteGslides( jobId )       { return this.post( "/api/jobs/" + jobId + "/gslides/delete" ); },
   // gslidesNew: make a separate Google deck instead of replacing the job's one.
-  exportJob( jobId , pptx , gslides , gslidesNew ) {
-    return this.post( "/api/jobs/" + jobId + "/export" , { pptx: pptx , gslides: gslides , gslides_new: Boolean( gslidesNew ) } );
+  // formats: { pptx, pdf, gslides, gslides_new } -- each true or false.
+  exportJob( jobId , formats ) {
+    return this.post( "/api/jobs/" + jobId + "/export" , formats );
   },
+
+  // A whole batch in one deck. With neither format ticked this only saves
+  // the order and the videos left out.
+  listCombined()               { return this.request( "/api/combined" ); },
+  exportCombined( payload )    { return this.post( "/api/combined" , payload ); },
+  deleteCombinedGslides( id )  { return this.post( "/api/combined/" + id + "/gslides/delete" ); },
+  combinedPptxUrl( combo )     { return "/api/combined/" + combo.id + "/download/pptx"; },
+  combinedPdfUrl( combo )      { return "/api/combined/" + combo.id + "/download/pdf"; },
 
   // URLs rather than calls: these are opened by <img> and download links.
   // ?r= changes when a job is re-run, so the long image cache is never stale.
   thumbUrl( job , n )          { return "/api/jobs/" + job.id + "/thumbs/" + n + "?r=" + job.run; },
   slideUrl( job , n )          { return "/api/jobs/" + job.id + "/slides/" + n + "?r=" + job.run; },
   pptxUrl( job )               { return "/api/jobs/" + job.id + "/download/pptx"; },
+  pdfUrl( job )                { return "/api/jobs/" + job.id + "/download/pdf"; },
   imagesUrl( job )             { return "/api/jobs/" + job.id + "/download/images"; },
 
   googleStatus()               { return this.request( "/api/google" ); },

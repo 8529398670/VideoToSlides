@@ -40,6 +40,7 @@ const Settings = {
   // How a value reads in "Default: …".
   shown( field , value ) {
     if ( field.type === "bool" ) return I18n.get( value ? "settings.value_on" : "settings.value_off" );
+    if ( field.type === "cores" ) return value ? String( value ) : I18n.get( "settings.cores_default" );
     if ( value === "" || value == null ) return "—";
     return String( value );
   },
@@ -52,10 +53,24 @@ const Settings = {
         Dom.el( "h2" , { text: I18n.get( "settings.groups." + group.id ) } ),
       ] } );
       if ( group.id === "google" ) Settings.googleIntro( card );
+      if ( group.id === "processing" ) Settings.machineIntro( card );
       group.fields.forEach( function ( field ) { card.appendChild( Settings.row( field ) ); } );
       root.appendChild( card );
     } );
     this.updateBar();
+  },
+
+  machineIntro( card ) {
+    const machine = this.data.machine;
+    if ( !machine ) return;
+    const key = machine.physical && machine.physical !== machine.cores ? "settings.machine_physical" : "settings.machine";
+    card.appendChild( Dom.el( "p" , { class: "muted small-text" , text: I18n.format( key , machine ) } ) );
+  },
+
+  // A core count for the slider's readout; 0 (stored) is "no limit".
+  coresText( count , total ) {
+    if ( !count || count >= total ) return I18n.format( "settings.cores_all" , { total: total } );
+    return I18n.format( "settings.cores_value" , { count: count , total: total } );
   },
 
   googleIntro( card ) {
@@ -91,6 +106,27 @@ const Settings = {
       select.value = String( field.value );
       select.addEventListener( "change" , function () { Settings.set( field , Number( select.value ) ); } );
       return select;
+    }
+    if ( field.type === "cores" ) {
+      // The right end means no limit, stored as 0.
+      const total = field.max;
+      const slider = Dom.el( "input" , { class: "cores-slider" , attrs: {
+        type: "range" , id: id , min: "1" , max: String( total ) , step: "1" ,
+      } } );
+      slider.value = String( field.value && field.value < total ? field.value : total );
+      const readout = Dom.el( "output" , { class: "small-text" , attrs: { for: id } } );
+      const show = function () {
+        const count = Number( slider.value );
+        Dom.text( readout , Settings.coresText( count , total ) );
+        slider.setAttribute( "aria-valuetext" , readout.textContent );
+      };
+      show();
+      slider.addEventListener( "input" , function () {
+        show();
+        const count = Number( slider.value );
+        Settings.set( field , count >= total ? 0 : count );
+      } );
+      return Dom.el( "div" , { class: "cores-input" , children: [ slider , readout ] } );
     }
     if ( field.type === "str" || field.type === "secret" ) {
       const attrs = { type: field.type === "secret" ? "password" : "text" , id: id , spellcheck: "false" };
@@ -162,7 +198,11 @@ const Settings = {
   reset( field , row ) {
     this.changes[ field.key ] = null;
     const box = row.querySelector( "input, select" );
-    if ( field.type === "bool" ) box.checked = Boolean( field.default );
+    if ( field.type === "cores" ) {
+      box.value = String( field.default && field.default < field.max ? field.default : field.max );
+      box.dispatchEvent( new Event( "input" ) );
+      this.changes[ field.key ] = null;
+    } else if ( field.type === "bool" ) box.checked = Boolean( field.default );
     else if ( field.type === "secret" || field.key === "google_redirect_url" ) box.value = "";
     else box.value = String( field.default );
     this.markRow( field.key );

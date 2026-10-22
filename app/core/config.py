@@ -98,6 +98,9 @@ class JobsSection:
     max_concurrent: int
     scan_workers: int
     extract_workers: int
+    cpu_limit: int
+    downloads_ahead: int
+    low_priority: bool
     keep_source: bool
 
 
@@ -243,6 +246,10 @@ class Config:
     jobs_max_concurrent: int = 1
     jobs_scan_workers: int = 1
     jobs_extract_workers: int = 6
+    # 0 = no limit; see app/core/machine.py worker_plan().
+    jobs_cpu_limit: int = 0
+    jobs_low_priority: bool = True
+    jobs_downloads_ahead: int = 2
     jobs_keep_source: bool = False
 
     upload_max_bytes: int = 21474836480
@@ -552,6 +559,8 @@ def validate(file: File) -> list[str]:
     check(1 <= jobs.max_concurrent <= 16, "jobs.max_concurrent must be 1-16")
     check(0 <= jobs.scan_workers <= 64, "jobs.scan_workers must be 0-64 (0 = CPU cores minus one)")
     check(1 <= jobs.extract_workers <= 32, "jobs.extract_workers must be 1-32")
+    check(0 <= jobs.cpu_limit <= 1024, "jobs.cpu_limit must be 0-1024 (0 = no limit)")
+    check(0 <= jobs.downloads_ahead <= 50, "jobs.downloads_ahead must be 0-50 (0 = no downloading ahead)")
 
     uploads = file.uploads
     check(uploads.max_bytes > 0, "uploads.max_bytes must be positive")
@@ -742,6 +751,9 @@ def load() -> Config:
         jobs_max_concurrent=file.jobs.max_concurrent,
         jobs_scan_workers=file.jobs.scan_workers or max(1, (os.cpu_count() or 2) - 1),
         jobs_extract_workers=file.jobs.extract_workers,
+        jobs_cpu_limit=file.jobs.cpu_limit,
+        jobs_low_priority=file.jobs.low_priority,
+        jobs_downloads_ahead=file.jobs.downloads_ahead,
         jobs_keep_source=file.jobs.keep_source,
         upload_max_bytes=file.uploads.max_bytes,
         upload_chunk_bytes=file.uploads.chunk_bytes,

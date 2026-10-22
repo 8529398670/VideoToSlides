@@ -31,6 +31,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core import config as config_module
+from app.core import machine
 from app.core.config import Config
 from app.pipeline import tunables as T
 
@@ -47,7 +48,7 @@ class Field:
     group: str          # settings.groups.<group>
     kind: str           # "tunable" (tunables.py) or "config" (Config field)
     target: str         # attribute name in tunables.py or on Config
-    type: str           # int | float | bool | str | secret | choice
+    type: str           # int | float | bool | str | secret | choice | cores
     minimum: float | None = None
     maximum: float | None = None
     step: float | None = None
@@ -67,7 +68,12 @@ def _c(key: str, group: str, target: str, type_: str, lo: float | None = None, h
 
 FIELDS: tuple[Field, ...] = (
     # -- processing (config.yaml jobs/uploads/youtube) --
+    # "cores" is a whole number shown as a slider up to this machine's core
+    # count, where 0 (the right end) means no limit.
+    _c("cpu_limit", "processing", "jobs_cpu_limit", "cores", 0, 1024, 1),
+    _c("low_priority", "processing", "jobs_low_priority", "bool"),
     _c("max_concurrent", "processing", "jobs_max_concurrent", "int", 1, 16, 1),
+    _c("downloads_ahead", "processing", "jobs_downloads_ahead", "int", 0, 50, 1),
     _c("scan_workers", "processing", "jobs_scan_workers", "int", 0, 64, 1),
     _c("extract_workers", "processing", "jobs_extract_workers", "int", 1, 32, 1),
     _c("keep_source", "processing", "jobs_keep_source", "bool"),
@@ -161,7 +167,7 @@ def coerce(field: Field, raw: Any) -> Any:
         raise SettingsError(f"{field.key} must be at least {field.minimum:g}")
     if field.maximum is not None and number > field.maximum:
         raise SettingsError(f"{field.key} must be at most {field.maximum:g}")
-    if field.type == "int":
+    if field.type in ("int", "cores"):
         if number != int(number):
             raise SettingsError(f"{field.key} must be a whole number")
         return int(number)
@@ -203,6 +209,7 @@ def describe(base: Config, overrides: dict[str, Any]) -> dict[str, Any]:
     """Everything the settings page needs, in display units. Secrets are
     never sent back -- only whether one is set."""
     effective = apply_config(base, overrides)
+    detected = machine.detect()
     groups: dict[str, list[dict[str, Any]]] = {group: [] for group in GROUPS}
     for field in FIELDS:
         if field.kind == "tunable":
@@ -222,6 +229,8 @@ def describe(base: Config, overrides: dict[str, Any]) -> dict[str, Any]:
             "step": field.step,
             "choices": list(field.choices),
         }
+        if field.type == "cores":
+            entry.update(min=1, max=detected.cores)
         if field.type == "secret":
             entry.update(value="", default="", set=bool(value))
         else:
@@ -231,6 +240,7 @@ def describe(base: Config, overrides: dict[str, Any]) -> dict[str, Any]:
         "groups": [{"id": group, "fields": groups[group]} for group in GROUPS],
         "google_redirect_default": config_module.default_google_redirect(base.port),
         "google_redirect_effective": effective.google_redirect_url,
+        "machine": detected.to_public(),
     }
 
 

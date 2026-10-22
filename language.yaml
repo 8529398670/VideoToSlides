@@ -151,6 +151,8 @@ jobs:
   source_upload: "Uploaded"
   source_youtube: "YouTube"
   status_queued: "Waiting in line"
+  status_fetching: "Downloading ahead"
+  status_downloaded: "Downloaded — waiting its turn"
   status_starting: "Starting"
   status_downloading: "Downloading"
   status_scanning: "Finding slides"
@@ -168,7 +170,12 @@ jobs:
   # {title} is the video's title. Empty this to run again without asking.
   rerun_confirm: "Process “{title}” again? Its slides, exclusions and exported links are replaced. YouTube videos are downloaded again."
   batch_progress: "{done} of {total} finished"
+  batch_failed: "{count} failed"
   convert_all: "Convert all ({count})"
+  convert_all_one: "Convert all into one"
+  combined_label: "All in one deck"
+  # {title} is the combined deck's title.
+  combined_gslides_delete_confirm: "Move the combined Google Slides deck “{title}” to the trash in Google Drive? The videos stay here."
   convert_button: "Convert"
   review_button: "Review slides"
   images_button: "Images (.zip)"
@@ -181,6 +188,11 @@ jobs:
   delete_google_label: "Also move the Google Slides deck to the trash in Google Drive"
   delete_cancel: "Cancel"
   delete_go: "Delete"
+  delete_batch_button: "Delete all"
+  delete_batch_title: "Delete all videos"
+  # {title} is the playlist or folder name; {count} how many videos it holds.
+  delete_batch_confirm: "Delete all {count} videos in “{title}”, their slides and any combined deck? This cannot be undone."
+  delete_batch_google_label: "Also move their Google Slides decks ({count}) to the trash in Google Drive"
 
 export:
   ready_one: "“{title}” is ready"
@@ -189,6 +201,7 @@ export:
   list_item: "{title} — {count} slides"
   choose: "Create"
   pptx: "PowerPoint (.pptx)"
+  pdf: "PDF"
   gslides: "Google Slides"
   replace_label: "Replace the existing Google Slides deck (same link)"
   google_as: "Saved to the Google Drive of {email}."
@@ -196,16 +209,47 @@ export:
   google_needs_setup: "Google Slides isn't set up on this server yet."
   google_ask_admin: "Google Slides isn't set up on this server yet — ask an admin."
   setup_button: "Set up Google Slides"
-  choose_one: "Pick PowerPoint, Google Slides, or both."
+  choose_one: "Pick at least one: Google Slides, PowerPoint or PDF."
   review_button: "Review slides first"
   later_button: "Not now"
   convert_button: "Convert"
   pptx_working: "Building PowerPoint…"
   pptx_download: "Download .pptx"
   pptx_failed: "PowerPoint failed: {error}"
+  pdf_working: "Building PDF…"
+  pdf_download: "Download .pdf"
+  pdf_failed: "PDF failed: {error}"
   gslides_working: "Uploading to Google Slides…"
   gslides_open: "Open in Google Slides"
+  gslides_delete: "Delete Google Slides"
+  # {title} is the video's title. Empty this to delete without asking.
+  gslides_delete_confirm: "Move the Google Slides deck for “{title}” to the trash in Google Drive? The video and its slides stay here."
   gslides_failed: "Google Slides failed: {error}"
+
+combine:
+  heading: "Convert all into one deck"
+  title_label: "Deck title"
+  hint: "Drag to change the order, or use the arrows. Untick a video to leave it out."
+  sort_button: "Sort by title"
+  drag_label: "Drag to reorder"
+  up_label: "Move up"
+  down_label: "Move down"
+  include_label: "Include {title}"
+  item_slides: "{count} slides"
+  summary: "{videos} videos · {slides} slides"
+  choose_one: "Tick at least one video."
+  cancel_button: "Cancel"
+  convert_button: "Convert"
+  pptx_working: "Building the combined PowerPoint…"
+  pptx_download: "Download combined .pptx"
+  pptx_failed: "Combined PowerPoint failed: {error}"
+  pdf: "PDF (with a bookmark for each video)"
+  pdf_working: "Building the combined PDF…"
+  pdf_download: "Download combined .pdf"
+  pdf_failed: "Combined PDF failed: {error}"
+  gslides_working: "Uploading the combined deck to Google Slides…"
+  gslides_open: "Open combined in Google Slides"
+  gslides_failed: "Combined Google Slides failed: {error}"
 
 review:
   count: "{included} of {total} slides included"
@@ -265,16 +309,32 @@ settings:
     duplicates: "Duplicate filtering"
     builds: "Incremental builds"
     output: "Output"
+  # {cpu} is the processor's name; {cores} logical cores, {physical} physical ones.
+  machine: "This computer: {cpu} — {cores} cores"
+  machine_physical: "This computer: {cpu} — {physical} cores, {cores} threads"
+  # {count} cores of {total}.
+  cores_value: "{count} of {total} cores"
+  cores_all: "All {total} cores (no limit)"
+  cores_default: "no limit"
   fields:
+    cpu_limit:
+      label: "CPU cores to use"
+      help: "How many cores processing may keep busy, shared between the videos processed at once. All the way right is as fast as possible; lower it to keep the computer usable while videos process. Applies to videos started after saving."
+    low_priority:
+      label: "Run in the background"
+      help: "Processing gives way to everything else on the computer, so the mouse and other apps stay responsive. It still uses idle cores fully, so it is barely slower."
+    downloads_ahead:
+      label: "YouTube videos downloaded ahead"
+      help: "While one video is processed, the next ones download, so processing never waits on the network. One downloads at a time; this many may be waiting on disk. 0 = download each only when its turn comes."
     max_concurrent:
       label: "Videos processed at once"
       help: "Each video already uses every core while scanning, so more than 1–2 mostly makes them all finish later."
     scan_workers:
       label: "Scan decoders per video"
-      help: "Parallel ffmpeg decoders while scanning. 0 = CPU cores minus one."
+      help: "Parallel ffmpeg decoders while scanning. 0 = CPU cores minus one. Capped by CPU cores to use."
     extract_workers:
       label: "Frame grabs in parallel"
-      help: "ffmpeg processes capturing slide frames at once. More can cause disk contention."
+      help: "ffmpeg processes capturing slide frames at once. More can cause disk contention. Capped by CPU cores to use."
     keep_source:
       label: "Keep videos after processing"
       help: "Off saves disk space. On lets uploaded videos be processed again later."

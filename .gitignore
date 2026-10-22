@@ -1,4 +1,5 @@
 # Runtime state -- never commit these. config.yaml holds the secret key.
+.DS_Store
 config.yaml
 data/
 *.db

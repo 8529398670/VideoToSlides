@@ -46,6 +46,7 @@ BUCKET_UPLOADS = "uploads"
 BUCKET_GOOGLE_ACCOUNTS = "google_accounts"
 BUCKET_OAUTH_STATES = "oauth_states"
 BUCKET_SETTINGS = "settings"
+BUCKET_COMBINED = "combined"
 
 BUCKETS = (
     BUCKET_USERS,
@@ -58,6 +59,7 @@ BUCKETS = (
     BUCKET_GOOGLE_ACCOUNTS,
     BUCKET_OAUTH_STATES,
     BUCKET_SETTINGS,
+    BUCKET_COMBINED,
 )
 
 # How long a writer waits for another writer before giving up. Without it a

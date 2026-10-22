@@ -42,6 +42,9 @@ Usage:
   requeue-job     --job-id 12           run a job again (finished, failed or cancelled)
   detect-builds   --job-id 12           re-mark incremental build steps on a finished
                                         job, after tuning app/pipeline/tunables.py
+  link-playlist   --url URL [--user-id 3]
+                                        record a playlist's link and order on videos
+                                        added before decks carried them
   paths                                 where this app keeps its state
 
 An API key carries a role from the same set users do, so an admin-scoped key
@@ -110,6 +113,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = commands.add_parser("detect-builds", help="re-mark incremental build steps on a finished job")
     p.add_argument("--job-id", type=int, required=True)
 
+    p = commands.add_parser("link-playlist", help="record a playlist's link and order on existing videos")
+    p.add_argument("--url", required=True, help="the playlist (or channel tab) URL")
+    p.add_argument("--user-id", type=int, default=None, help="only this user's jobs (default: everyone's)")
+
     commands.add_parser("paths", help="where this app keeps its state")
     return parser
 
@@ -144,6 +151,7 @@ def run(arguments: list[str]) -> None:
         "list-jobs": command_list_jobs,
         "requeue-job": command_requeue_job,
         "detect-builds": command_detect_builds,
+        "link-playlist": command_link_playlist,
     }
     try:
         handlers[args.command](store, cfg, args)
@@ -331,6 +339,34 @@ def command_detect_builds(store: db.Store, cfg: config.Config, args: argparse.Na
         raise ManageError(f"job {job.id} changed while this ran -- try again")
     kept = [s.n for s in slides if not s.build_step]
     print(f"job {job.id}: {len(slides) - len(kept)} build step(s); deck slides: {kept}")
+
+
+def command_link_playlist(store: db.Store, cfg: config.Config, args: argparse.Namespace) -> None:
+    """Videos added before jobs kept their playlist have no playlist link or
+    position for the deck's notes. This reads the playlist from YouTube and
+    fills both in on every job whose video is in it -- matched by video id,
+    so nothing is downloaded or re-run."""
+    from app.sources import youtube
+
+    url = youtube.normalize_url(args.url)
+    if url is None:
+        raise ManageError("that is not a YouTube URL")
+    try:
+        playlist, entries = youtube.expand(url, cfg.youtube_max_playlist_items)
+    except youtube.YouTubeError as failure:
+        raise ManageError(str(failure)) from None
+    if playlist is None:
+        raise ManageError("that URL is a single video, not a playlist")
+    by_video = {entry.video_id: entry for entry in entries if entry.video_id}
+    linked = 0
+    for job in jobs.list_jobs(store):
+        if args.user_id is not None and job.user_id != args.user_id:
+            continue
+        entry = by_video.get(youtube.video_id(job.source_url))
+        if entry is not None and jobs.set_playlist(store, job.id, entry.playlist_info(playlist)) is not None:
+            linked += 1
+            print(f"job {job.id}: #{entry.index} {job.title[:60]}")
+    print(f"linked {linked} job(s) to {playlist.title!r} ({len(entries)} videos in it); convert again to update decks")
 
 
 def command_paths(cfg: config.Config) -> None:

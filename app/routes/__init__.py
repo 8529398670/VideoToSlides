@@ -23,7 +23,7 @@ from starlette.routing import BaseRoute, Route
 from app.core.config import Config
 from app.core.security import RequireAdmin, RequireLogin, RequireSession
 from app.core.static_files import StaticServer
-from app.routes import account, admin, api_keys, auth, exports, google, jobs, meta, settings, slides, team, uploads, youtube
+from app.routes import account, admin, api_keys, auth, combined, exports, google, jobs, meta, settings, slides, team, uploads, youtube
 from app.routes.api_keys import RequireAPIKeys
 
 
@@ -86,6 +86,7 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/uploads/{upload_id}/complete", uploads.complete_upload, ["POST"]),
         signed_in("/api/uploads/{upload_id}/abort", uploads.abort_upload, ["POST"]),
         signed_in("/api/jobs/youtube", youtube.add_youtube, ["POST"]),
+        signed_in("/api/batches/delete", jobs.delete_batch, ["POST"]),
         # The caller's own jobs.
         signed_in("/api/jobs", jobs.list_jobs),
         signed_in("/api/jobs/{job_id}", jobs.get_job),
@@ -96,8 +97,16 @@ def build_routes(static_server: StaticServer, cfg: Config) -> list[BaseRoute]:
         signed_in("/api/jobs/{job_id}/thumbs/{n}", slides.thumb_image),
         signed_in("/api/jobs/{job_id}/slides/{n}/exclude", jobs.set_slide_excluded, ["POST"]),
         signed_in("/api/jobs/{job_id}/export", exports.start_export, ["POST"]),
+        signed_in("/api/jobs/{job_id}/gslides/delete", exports.delete_gslides, ["POST"]),
         signed_in("/api/jobs/{job_id}/download/pptx", exports.download_pptx),
+        signed_in("/api/jobs/{job_id}/download/pdf", exports.download_pdf),
         signed_in("/api/jobs/{job_id}/download/images", exports.download_images),
+        # A whole batch in one deck.
+        signed_in("/api/combined", combined.list_combined),
+        signed_in("/api/combined", combined.start_combined_export, ["POST"]),
+        signed_in("/api/combined/{combined_id}/download/pptx", combined.download_combined_pptx),
+        signed_in("/api/combined/{combined_id}/download/pdf", combined.download_combined_pdf),
+        signed_in("/api/combined/{combined_id}/gslides/delete", combined.delete_combined_gslides, ["POST"]),
         # Google Slides export.
         signed_in("/api/google", google.status),
         signed_in_browser("/api/google/connect", google.connect, ["POST"]),

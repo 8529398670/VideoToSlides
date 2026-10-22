@@ -9,6 +9,11 @@ Status moves one way: queued -> starting -> [downloading] -> scanning ->
 extracting -> filtering -> ready, or to failed/cancelled from any active
 state. Retry puts a failed or cancelled job back to queued.
 
+A YouTube video is normally downloaded ahead of time, while other videos are
+being processed: queued -> fetching (a download-only worker) -> queued again
+with its video on disk, and only then claimed for processing. "downloading"
+remains for a worker that has to fetch the video itself.
+
 Every change goes through store.update_value, and every mutate function
 checks the status it expects first. That matters here more than anywhere
 else in the app: the worker process and the web server both write these
@@ -26,6 +31,7 @@ from app.core.db import BUCKET_JOBS, Record, Store
 from app.models import from_iso, to_iso, utc_now
 
 STATUS_QUEUED = "queued"
+STATUS_FETCHING = "fetching"
 STATUS_STARTING = "starting"
 STATUS_DOWNLOADING = "downloading"
 STATUS_SCANNING = "scanning"
@@ -37,7 +43,7 @@ STATUS_CANCELLED = "cancelled"
 
 # A worker process owns the job while it is in one of these.
 RUNNING_STATUSES = (STATUS_STARTING, STATUS_DOWNLOADING, STATUS_SCANNING, STATUS_EXTRACTING, STATUS_FILTERING)
-ACTIVE_STATUSES = (STATUS_QUEUED,) + RUNNING_STATUSES
+ACTIVE_STATUSES = (STATUS_QUEUED, STATUS_FETCHING) + RUNNING_STATUSES
 # A ready job can be run again too -- to pick up pipeline improvements. Its
 # slides and exclusions are replaced.
 RETRYABLE_STATUSES = (STATUS_FAILED, STATUS_CANCELLED, STATUS_READY)
@@ -47,7 +53,8 @@ SOURCE_YOUTUBE = "youtube"
 
 EXPORT_PPTX = "pptx"
 EXPORT_GSLIDES = "gslides"
-EXPORT_KINDS = (EXPORT_PPTX, EXPORT_GSLIDES)
+EXPORT_PDF = "pdf"
+EXPORT_KINDS = (EXPORT_PPTX, EXPORT_GSLIDES, EXPORT_PDF)
 
 EXPORT_WORKING = "working"
 EXPORT_DONE = "done"
@@ -73,6 +80,11 @@ class Job:
     source_url: str | None = None
     # Display label grouping the jobs from one playlist or one dropped folder.
     batch: str | None = None
+    # For a video added as part of a YouTube playlist or channel tab:
+    # {"title", "url", "index", "video_url"} -- the playlist's page, the
+    # video's position in it, and a link that opens the video inside the
+    # playlist (None for a channel tab). The deck's notes carry these.
+    playlist: dict[str, Any] | None = None
     # The video's filename inside the job directory, while it exists.
     source_file: str | None = None
     progress: float = 0.0
@@ -86,7 +98,7 @@ class Job:
     counts: dict[str, int] = field(default_factory=dict)
     # [{n, file, start_sec, captured_sec, energy, build_step, excluded}]
     slides: list[dict[str, Any]] = field(default_factory=list)
-    # {"pptx": {"status", "error", "at"}, "gslides": {"status", "error", "url", "at"}}
+    # {"pptx" | "pdf": {"status", "error", "at"}, "gslides": {"status", "error", "url", "at"}}
     exports: dict[str, dict[str, Any]] = field(default_factory=dict)
     # The job's Google Slides deck: {"file_id", "url"}. Kept apart from
     # `exports`, which re-runs and new exports reset, so converting again
@@ -98,6 +110,15 @@ class Job:
     @property
     def active(self) -> bool:
         return self.status in ACTIVE_STATUSES
+
+    @property
+    def needs_download(self) -> bool:
+        return self.source_kind == SOURCE_YOUTUBE and self.source_file is None
+
+    @property
+    def downloaded(self) -> bool:
+        """Fetched ahead and waiting for a processing slot."""
+        return self.status == STATUS_QUEUED and self.source_kind == SOURCE_YOUTUBE and self.source_file is not None
 
     @property
     def can_rerun(self) -> bool:
@@ -159,6 +180,7 @@ class Job:
             "build_step_count": sum(1 for slide in self.slides if slide.get("build_step")),
             "hidden_build_steps": sum(1 for slide in self.slides if slide.get("build_step") and slide.get("excluded")),
             "can_rerun": self.can_rerun,
+            "downloaded": self.downloaded,
             "exports": self.exports,
             "gslides_url": self.gslides_url,
             "created_at": to_iso(self.created_at),
@@ -191,7 +213,8 @@ def reserve_id(store: Store) -> int:
 
 
 def create_job(store: Store, user_id: int, source_kind: str, title: str, *, source_url: str | None = None,
-               batch: str | None = None, source_file: str | None = None, job_id: int | None = None) -> Job:
+               batch: str | None = None, source_file: str | None = None, job_id: int | None = None,
+               playlist: dict[str, Any] | None = None) -> Job:
     now = utc_now()
     job = Job(
         id=job_id if job_id is not None else store.next_sequence(BUCKET_JOBS),
@@ -203,6 +226,7 @@ def create_job(store: Store, user_id: int, source_kind: str, title: str, *, sour
         updated_at=now,
         source_url=source_url,
         batch=clean_title(batch) if batch else None,
+        playlist=playlist,
         source_file=source_file,
     )
     store.put(BUCKET_JOBS, job.id, job.to_record())
@@ -245,17 +269,23 @@ def _update(store: Store, job_id: int, mutate: Callable[[Record], bool]) -> Job 
 # -- the dispatcher and the worker ---------------------------------------------
 
 
-def claim_queued(store: Store, limit: int) -> list[Job]:
+def claim_queued(store: Store, limit: int, downloaded_only: bool = False) -> list[Job]:
     """Move up to `limit` of the oldest queued jobs to starting and return
     them. The status check inside the transaction is what makes a claim
-    exclusive."""
+    exclusive. With downloaded_only, a YouTube video still to be fetched is
+    left for the download worker (claim_for_download)."""
     claimed: list[Job] = []
-    for job in sorted((job for job in list_jobs(store) if job.status == STATUS_QUEUED), key=lambda job: job.id):
+    waiting = (job for job in list_jobs(store) if job.status == STATUS_QUEUED)
+    for job in sorted(waiting, key=lambda job: job.id):
         if len(claimed) >= limit:
             break
+        if downloaded_only and job.needs_download:
+            continue
 
         def mutate(record: Record) -> bool:
             if record["status"] != STATUS_QUEUED:
+                return False
+            if downloaded_only and record["source_kind"] == SOURCE_YOUTUBE and not record.get("source_file"):
                 return False
             record["status"] = STATUS_STARTING
             record["progress"] = 0.0
@@ -266,6 +296,76 @@ def claim_queued(store: Store, limit: int) -> list[Job]:
         if updated is not None:
             claimed.append(updated)
     return claimed
+
+
+def download_backlog(store: Store) -> int:
+    """Videos fetched ahead or being fetched, not yet being processed."""
+    return sum(1 for job in list_jobs(store) if job.status == STATUS_FETCHING or job.downloaded)
+
+
+def claim_for_download(store: Store, limit: int) -> list[Job]:
+    """Move up to `limit` of the oldest queued YouTube jobs whose video is
+    not downloaded yet to fetching."""
+    claimed: list[Job] = []
+    waiting = (job for job in list_jobs(store) if job.status == STATUS_QUEUED and job.needs_download)
+    for job in sorted(waiting, key=lambda job: job.id):
+        if len(claimed) >= limit:
+            break
+
+        def mutate(record: Record) -> bool:
+            if record["status"] != STATUS_QUEUED or record.get("source_file"):
+                return False
+            record["status"] = STATUS_FETCHING
+            record["progress"] = 0.0
+            record["error"] = None
+            return True
+
+        updated = _update(store, job.id, mutate)
+        if updated is not None:
+            claimed.append(updated)
+    return claimed
+
+
+def set_fetch_progress(store: Store, job_id: int, progress: float) -> bool:
+    def mutate(record: Record) -> bool:
+        if record["status"] != STATUS_FETCHING:
+            return False
+        record["progress"] = max(0.0, min(1.0, float(progress)))
+        return True
+
+    return _update(store, job_id, mutate) is not None
+
+
+def finish_fetch(store: Store, job_id: int, source_file: str, title: str | None) -> bool:
+    """Downloaded: back in the queue, now ready to process. Refused if the
+    job was cancelled meanwhile."""
+
+    def mutate(record: Record) -> bool:
+        if record["status"] != STATUS_FETCHING:
+            return False
+        record["status"] = STATUS_QUEUED
+        record["progress"] = 0.0
+        record["source_file"] = source_file
+        if title:
+            record["title"] = clean_title(title)
+        return True
+
+    return _update(store, job_id, mutate) is not None
+
+
+def fail_fetch(store: Store, job_id: int, error: str) -> bool:
+    """A download worker that died: fail its job only if it is still
+    fetching -- a finished download has already put it back in the queue."""
+
+    def mutate(record: Record) -> bool:
+        if record["status"] != STATUS_FETCHING:
+            return False
+        record["status"] = STATUS_FAILED
+        record["error"] = str(error)[:ERROR_MAX] or "failed"
+        record["finished_at"] = to_iso(utc_now())
+        return True
+
+    return _update(store, job_id, mutate) is not None
 
 
 def set_stage(store: Store, job_id: int, status: str, progress: float) -> bool:
@@ -290,6 +390,14 @@ def set_source(store: Store, job_id: int, source_file: str | None, title: str | 
         return True
 
     _update(store, job_id, mutate)
+
+
+def set_playlist(store: Store, job_id: int, playlist: dict[str, Any] | None) -> Job | None:
+    def mutate(record: Record) -> bool:
+        record["playlist"] = playlist
+        return True
+
+    return _update(store, job_id, mutate)
 
 
 def finish_job(store: Store, job_id: int, width: int, height: int, duration_sec: float,
@@ -329,10 +437,13 @@ def requeue_interrupted(store: Store) -> int:
     count = 0
     for job in list_jobs(store):
         stuck_export = any(state.get("status") == EXPORT_WORKING for state in job.exports.values())
-        if job.status not in RUNNING_STATUSES and not stuck_export:
+        if job.status not in RUNNING_STATUSES and job.status != STATUS_FETCHING and not stuck_export:
             continue
 
         def mutate(record: Record) -> bool:
+            if record["status"] == STATUS_FETCHING:
+                record["status"] = STATUS_QUEUED
+                record["progress"] = 0.0
             if record["status"] in RUNNING_STATUSES:
                 record["status"] = STATUS_QUEUED
                 record["progress"] = 0.0
@@ -440,3 +551,21 @@ def finish_export(store: Store, job_id: int, kind: str, *, error: str | None = N
 
     _update(store, job_id, mutate)
 
+
+
+def forget_gslides(store: Store, job_id: int, file_id: str) -> Job | None:
+    """The deck was trashed in Drive; stop pointing at it. Refused while a
+    Google export is running or once the job points at a different deck --
+    either way a newer deck must not be forgotten."""
+
+    def mutate(record: Record) -> bool:
+        exports = record.setdefault("exports", {})
+        if exports.get(EXPORT_GSLIDES, {}).get("status") == EXPORT_WORKING:
+            return False
+        if Job.from_record(record).gslides_file_id != file_id:
+            return False
+        record["gslides"] = None
+        exports.pop(EXPORT_GSLIDES, None)
+        return True
+
+    return _update(store, job_id, mutate)

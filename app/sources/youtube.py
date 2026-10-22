@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 ALLOWED_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
 URL_MAX = 2048
@@ -32,9 +32,33 @@ class YouTubeError(Exception):
 
 
 @dataclass
+class Playlist:
+    """Where a batch of videos came from: a playlist, or a channel tab."""
+    title: str
+    url: str
+    # The list= id; None for a channel tab, which has no playlist links.
+    list_id: str | None
+
+
+@dataclass
 class Entry:
     url: str
     title: str
+    # 1-based position in the playlist, counting videos that were skipped.
+    index: int | None = None
+    video_id: str | None = None
+
+    def playlist_info(self, playlist: Playlist | None) -> dict | None:
+        """What a job keeps about its playlist, for the deck's notes."""
+        if playlist is None:
+            return None
+        video_url = None
+        if playlist.list_id and self.video_id:
+            query = {"v": self.video_id, "list": playlist.list_id}
+            if self.index:
+                query["index"] = str(self.index)
+            video_url = "https://www.youtube.com/watch?" + urlencode(query)
+        return {"title": playlist.title, "url": playlist.url, "index": self.index, "video_url": video_url}
 
 
 def normalize_url(raw: object) -> str | None:
@@ -57,6 +81,16 @@ def normalize_url(raw: object) -> str | None:
     return url
 
 
+def video_id(url: str | None) -> str | None:
+    """The v= id of a watch URL, or the path of a youtu.be one."""
+    if not url:
+        return None
+    parts = urlsplit(url)
+    if (parts.hostname or "").lower() == "youtu.be":
+        return parts.path.strip("/") or None
+    return (parse_qs(parts.query).get("v") or [None])[0]
+
+
 def _options(**extra: object) -> dict:
     return {
         "quiet": True,
@@ -76,8 +110,8 @@ def _message(error: Exception) -> str:
     return text.splitlines()[0][:300] if text else "YouTube download failed"
 
 
-def expand(url: str, max_items: int) -> tuple[str | None, list[Entry]]:
-    """(playlist title or None, the videos). A plain video URL is one entry
+def expand(url: str, max_items: int) -> tuple[Playlist | None, list[Entry]]:
+    """(the playlist or None, the videos). A plain video URL is one entry
     -- even one carrying &list=, which is a video someone was watching inside
     a playlist, not a request for the playlist. A /playlist?list= URL, or a
     channel tab like /@name/videos, expands to its videos (flat: titles and
@@ -97,7 +131,7 @@ def expand(url: str, max_items: int) -> tuple[str | None, list[Entry]]:
         return None, [Entry(url=info.get("webpage_url") or url, title=info.get("title") or url)]
 
     entries: list[Entry] = []
-    for entry in info.get("entries") or []:
+    for index, entry in enumerate(info.get("entries") or [], 1):
         if not entry or entry.get("title") in PLACEHOLDER_TITLES:
             continue
         # A channel's top level lists its tabs (Videos, Shorts, ...), which
@@ -107,12 +141,14 @@ def expand(url: str, max_items: int) -> tuple[str | None, list[Entry]]:
         video_id = entry.get("id")
         entry_url = entry.get("url") or (f"https://www.youtube.com/watch?v={video_id}" if video_id else None)
         if entry_url:
-            entries.append(Entry(url=entry_url, title=entry.get("title") or entry_url))
+            entries.append(Entry(url=entry_url, title=entry.get("title") or entry_url, index=index, video_id=video_id))
         if len(entries) >= max_items:
             break
     if not entries:
         raise YouTubeError("no videos found in that playlist or channel (for a channel, use its /videos page)")
-    return info.get("title"), entries
+    page = info.get("webpage_url") or url
+    list_id = (parse_qs(urlsplit(page).query).get("list") or [None])[0]
+    return Playlist(title=info.get("title") or page, url=page, list_id=list_id), entries
 
 
 def download(url: str, target_dir: Path, tmp_dir: Path, max_height: int,

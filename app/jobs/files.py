@@ -4,7 +4,11 @@
     slides/           full-size slide images: the "folder of images"
     thumbs/           review-grid thumbnails, same names
     deck.pptx         the last PowerPoint export
+    deck.pdf          the last PDF export
     images.zip        the slides folder, zipped for download
+
+A combined deck (every video of a batch in one) lives in
+<storage>/combined/<id>/deck.pptx and deck.pdf.
 
 Paths come only from here, built from a job id and fixed names -- nothing a
 client sends ever becomes part of a path.
@@ -22,12 +26,21 @@ from app.core.config import Config
 from app.pipeline.runner import SLIDES_DIR, THUMBS_DIR
 
 DECK_FILE = "deck.pptx"
+PDF_FILE = "deck.pdf"
 ZIP_FILE = "images.zip"
 SOURCE_STEM = "source"
 
 
 def job_dir(cfg: Config, job_id: int) -> Path:
     return cfg.jobs_dir / str(int(job_id))
+
+
+def combined_dir(cfg: Config, combined_id: int) -> Path:
+    return cfg.storage_dir / "combined" / str(int(combined_id))
+
+
+def delete_combined_files(cfg: Config, combined_id: int) -> None:
+    shutil.rmtree(combined_dir(cfg, combined_id), ignore_errors=True)
 
 
 def slides_dir(cfg: Config, job_id: int) -> Path:
